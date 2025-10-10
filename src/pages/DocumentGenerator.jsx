@@ -69,17 +69,27 @@ useEffect(() => {
   if (!loaded) return;
   if (issueNow && formData.id) {
     const issued = { ...formData, documentType: "factura", facturada: true };
-    const arr = JSON.parse(localStorage.getItem("facturas") || "[]");
-    const idx = arr.findIndex(d => d.id === issued.id);
-    if (idx >= 0) arr[idx] = issued; else arr.push(issued);
-    localStorage.setItem("facturas", JSON.stringify(arr));
 
-    const drafts = (JSON.parse(localStorage.getItem("savedInvoices") || "[]") || [])
-      .filter(d => d.id !== issued.id);
-    localStorage.setItem("savedInvoices", JSON.stringify(drafts));
+    // Guarda/actualiza en "facturas"
+    const facturas = JSON.parse(localStorage.getItem("facturas") || "[]");
+    const fx = facturas.findIndex(d => d.id === issued.id);
+    if (fx >= 0) facturas[fx] = issued; else facturas.push(issued);
+    localStorage.setItem("facturas", JSON.stringify(facturas));
+
+    // 👇 NO tocar "savedInvoices": mantenemos el borrador visible en la lista
+    // (Si quieres marcar el borrador como "ya facturado", puedes actualizar ese objeto también)
+    try {
+      const drafts = JSON.parse(localStorage.getItem("savedInvoices") || "[]");
+      const ix = drafts.findIndex(d => d.id === issued.id);
+      if (ix >= 0) {
+        drafts[ix] = { ...drafts[ix], facturada: true, documentType: "presupuesto" }; 
+        localStorage.setItem("savedInvoices", JSON.stringify(drafts));
+      }
+    } catch {}
 
     setFormData(issued);
-    setDocumentType("factura");
+    // Si fijaste el tipo por prop, puedes omitir esta línea:
+    // setDocumentType("factura");
   }
 }, [issueNow, formData.id, loaded]);
 
@@ -253,46 +263,30 @@ useEffect(() => {
   
 
   const generatePDF = async () => {
-    // --- funciones auxiliares (sin cambios de comportamiento) ---
-    async function savePDFToFolder(
-      doc,
-      filename,
-      documentType,
-      { updateBalanceCsv = false, isFacturada = false, useTypeSubfolder = true } = {}
-    ) {
-      const supportsFS = typeof window.showDirectoryPicker === "function";
-      if (!supportsFS) {
+        // --- guardar PDF con "Guardar como..." (sin crear carpetas) ---
+    async function savePDFFile(doc, filename) {
+      const soportaPicker = typeof window.showSaveFilePicker === "function";
+      if (!soportaPicker) {
+        // Fallback: descarga directa
         doc.save(filename);
         return false;
       }
       try {
-        const rootHandle = await window.showDirectoryPicker({
-          id: "mln-root",
-          mode: "readwrite",
-          startIn: "downloads",
+        const handle = await window.showSaveFilePicker({
+          suggestedName: filename,
+          types: [
+            {
+              description: "PDF",
+              accept: { "application/pdf": [".pdf"] },
+            },
+          ],
         });
-  
-        // Una sola carpeta destino (si quieres subcarpeta por tipo, deja useTypeSubfolder=true)
-        let targetHandle = rootHandle;
-        if (useTypeSubfolder) {
-          const subFolderName = documentType === "factura" ? "Facturas MLN" : "Presupuestos MLN";
-          targetHandle = await rootHandle.getDirectoryHandle(subFolderName, { create: true });
-        }
-  
-        const fileHandle = await targetHandle.getFileHandle(filename, { create: true });
-        const writable = await fileHandle.createWritable();
-        const blob = doc.output("blob");
-        await writable.write(blob);
+        const writable = await handle.createWritable();
+        await writable.write(doc.output("blob"));
         await writable.close();
-  
-        if (updateBalanceCsv && documentType === "factura" && isFacturada) {
-          const balanceRoot = await rootHandle.getDirectoryHandle("Balance MLN", { create: true });
-          await updateBalanceCSV(balanceRoot);
-        }
-  
         return true;
       } catch (e) {
-        console.warn("No se pudo guardar en carpeta elegida. Descargando normal:", e);
+        console.warn("Guardado cancelado o fallido. Uso descarga directa:", e);
         doc.save(filename);
         return false;
       }
@@ -703,10 +697,7 @@ useEffect(() => {
       }
   
       // === 4) Guardar y navegar (AHORA sí tenemos doc y filename) ===
-      await savePDFToFolder(doc, filename, documentType, {
-        updateBalanceCsv: true,
-        isFacturada: documentType === "factura" && !!formData.facturada,
-      });
+      await savePDFFile(doc, filename);
   
       navigate(-1);
     } catch (err) {
