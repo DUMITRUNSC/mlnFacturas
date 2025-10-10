@@ -4,23 +4,18 @@
   "version": "1.0.0",
   "type": "module",
   "main": "electron/main.cjs",
-
   "scripts": {
     "start:web": "vite --port 5173",
     "start:electron": "wait-on http://localhost:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .",
     "dev": "concurrently \"npm run start:web\" \"npm run start:electron\"",
-
     "build:web": "vite build",
-
     "build:win:portable": "npm run build:web && electron-builder --win portable",
     "build:win:installer": "npm run build:web && electron-builder --win nsis",
     "build:win:all": "npm run build:web && electron-builder --win nsis portable",
-
-    "build": "npm run build:win:all", 
+    "build": "npm run build:win:all",
     "lint": "eslint .",
     "preview": "vite preview --port 5173"
   },
-
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",
     "daisyui": "^5.0.27",
@@ -39,9 +34,9 @@
     "uuid": "^11.1.0",
     "yup": "^1.6.1"
   },
-
   "devDependencies": {
     "@eslint/js": "^9.21.0",
+    "@tailwindcss/vite": "^4.1.14",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react": "^4.3.4",
@@ -56,16 +51,13 @@
     "vite": "^6.2.0",
     "wait-on": "^8.0.4"
   },
-
   "build": {
     "appId": "com.mlnconstruccion.app",
     "productName": "MLNConstruccion",
-
     "directories": {
       "output": "release",
       "buildResources": "build"
     },
-
     "files": [
       "dist/**/*",
       "electron/**/*",
@@ -73,22 +65,29 @@
     ],
     "asar": true,
     "publish": "never",
-
     "win": {
       "icon": "build/icon.ico",
       "target": [
-        { "target": "nsis", "arch": ["x64"] },
-        { "target": "portable", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ]
     },
-
     "nsis": {
       "oneClick": true,
       "perMachine": false,
       "allowToChangeInstallationDirectory": false,
       "artifactName": "${productName}-Setup-${version}.exe"
     },
-
     "portable": {
       "artifactName": "${productName}-Portable-${version}.exe"
     }
