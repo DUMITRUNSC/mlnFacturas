@@ -5,7 +5,7 @@ function App() {
   const navigate = useNavigate();
 
   return (
-    <main className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 to-blue-400 overflow-hidden px-4">
+    <main className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 to-blue-400 overflow-hidden px-15">
       {/* Fondo animado: blobs en tonos azules */}
       <div className="absolute top-0 left-0 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob"></div>
       <div className="absolute top-20 right-0 w-72 h-72 bg-blue-400 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-2000"></div>

@@ -28,6 +28,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           <Route path="/facturas-guardadas" element={<FacturasGuardadas />} />
           <Route path="/presupuestos-guardadas" element={<PresupuestosGuardadas />} />
           <Route path="/balances" element={<Balances />} />
+          <Route path="/documento" element={<DocumentGenerator />} />
         </Routes>
       </Router>
     </BusinessProvider>
