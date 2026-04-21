@@ -1,140 +1,250 @@
 import React, { useState, useContext, useEffect } from "react";
-import { v4 as uuidv4 } from 'uuid';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { v4 as uuidv4 } from "uuid";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-
-// Contexto de datos de empresa
 import { BusinessContext } from "../context/BusinessContext.jsx";
+import { useData } from "../context/DataContext.jsx";
 
+/* ─── Field wrapper ──────────────────────────────────────────────────────── */
+function Field({ label, error, children, hint, required }) {
+  return (
+    <div>
+      <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
+        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+      </label>
+      {children}
+      {hint && !error && <p className="mt-1 text-xs text-slate-400">{hint}</p>}
+      {error && <p className="mt-1 text-xs text-red-600 font-medium">{error}</p>}
+    </div>
+  );
+}
+
+const inputCls = (err) =>
+  `w-full px-3 py-2.5 text-sm border rounded-lg bg-white placeholder-slate-400
+   focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors
+   ${err ? "border-red-400 bg-red-50" : "border-slate-200 hover:border-slate-300"}`;
+
+/* ─── Section card ───────────────────────────────────────────────────────── */
+function Section({ title, children }) {
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
+      <div className="px-5 py-3.5 border-b border-slate-100">
+        <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
+      </div>
+      <div className="p-5">{children}</div>
+    </div>
+  );
+}
+
+/* ─── Item modal ─────────────────────────────────────────────────────────── */
+function ItemModal({ isOpen, onClose, onSave, form, onChange, isEditing }) {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-2xl w-full sm:max-w-lg max-h-[90dvh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <h3 className="font-semibold text-slate-800">
+            {isEditing ? "Editar servicio" : "Agregar servicio"}
+          </h3>
+          <button onClick={onClose}
+            className="text-slate-400 hover:text-slate-600 transition-colors">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <Field label="Descripción" required>
+            <textarea
+              id="description"
+              value={form.description}
+              onChange={onChange}
+              rows={4}
+              placeholder="Descripción detallada del servicio..."
+              className={`${inputCls(false)} resize-none`}
+            />
+          </Field>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Cantidad" required>
+              <input type="number" id="quantity" value={form.quantity} onChange={onChange}
+                className={inputCls(false)} placeholder="1" min="0" step="any" />
+            </Field>
+            <Field label="Precio unitario (€)" required>
+              <input type="number" id="price" value={form.price} onChange={onChange}
+                className={inputCls(false)} placeholder="0.00" min="0" step="any" />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="IVA (%)">
+              <input type="number" id="iva" value={form.iva} onChange={onChange}
+                className={inputCls(false)} min="0" max="100" />
+            </Field>
+            <Field label="Unidad">
+              <div className="flex gap-2 mt-0.5">
+                {["m²", "Unidades", "ml", "h"].map((u) => (
+                  <label key={u}
+                    className={`cursor-pointer px-3 py-2 text-sm border rounded-lg flex-1 text-center transition-colors ${
+                      form.unit === u
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
+                    }`}>
+                    <input type="radio" name="unit" value={u} checked={form.unit === u}
+                      onChange={(e) => onChange({ target: { id: "unit", value: e.target.value } })}
+                      className="hidden" />
+                    {u}
+                  </label>
+                ))}
+              </div>
+            </Field>
+          </div>
+
+          {/* Preview */}
+          {form.quantity && form.price && (
+            <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-xs text-slate-600 space-y-1">
+              <div className="flex justify-between">
+                <span>Base</span>
+                <span className="font-medium">{(Number(form.quantity) * Number(form.price)).toFixed(2)} €</span>
+              </div>
+              <div className="flex justify-between">
+                <span>IVA ({form.iva}%)</span>
+                <span className="font-medium">{(Number(form.quantity) * Number(form.price) * (Number(form.iva) / 100)).toFixed(2)} €</span>
+              </div>
+              <div className="flex justify-between border-t border-slate-200 pt-1 font-semibold text-slate-800">
+                <span>Total</span>
+                <span>{(Number(form.quantity) * Number(form.price) * (1 + Number(form.iva) / 100)).toFixed(2)} €</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-100">
+          <button onClick={onClose}
+            className="px-4 py-2 text-sm font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors">
+            Cancelar
+          </button>
+          <button onClick={onSave}
+            className="px-5 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+            {isEditing ? "Guardar cambios" : "Agregar"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Toast ──────────────────────────────────────────────────────────────── */
+function Toast({ show, message, onClose }) {
+  if (!show) return null;
+  return (
+    <div className="fixed bottom-20 md:bottom-6 right-4 md:right-6 bg-emerald-600 text-white px-5 py-3.5 rounded-xl shadow-lg flex items-center gap-3 text-sm font-medium z-50 animate-bounce">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+      {message}
+      <button onClick={onClose} className="ml-2 opacity-70 hover:opacity-100">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+          <path d="M18 6L6 18M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+/* ─── Main Component ─────────────────────────────────────────────────────── */
 function DocumentGenerator({ documentType: initialType = "presupuesto" }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const editingId = searchParams.get('edit');
-
-  const issueNow = searchParams.get('issue') === '1';   // si viene de FacturasGuardadas
-  const autoPDF = searchParams.get('autopdf') === '1';  // para disparar PDF al entrar
+  const editingId = searchParams.get("edit");
+  const issueNow  = searchParams.get("issue") === "1";
+  const autoPDF   = searchParams.get("autopdf") === "1";
 
   const { business } = useContext(BusinessContext);
-
+  const {
+    upsertFactura, removeFactura,
+    upsertPresupuesto,
+    upsertBorrador, removeBorrador,
+    findDocById,
+  } = useData();
   const [documentType, setDocumentType] = useState(initialType);
   const [formData, setFormData] = useState({
-    id: "", // lo generamos con uuidv4 si es nuevo
-    numero: "",
-    fecha: "",
-    clienteNombre: "",
-    clienteCIF: "",
-    clienteDireccion: "",
-    clienteCP: "",
-    clienteLocalidad: "",
-    clienteProvincia: "",
-    iva: 21,
-    comentarios: "",
-    items: [],
-    facturada: false,
+    id: "", numero: "", fecha: "", clienteNombre: "", clienteCIF: "",
+    clienteDireccion: "", clienteCP: "", clienteLocalidad: "", clienteProvincia: "",
+    iva: 21, comentarios: "", items: [], facturada: false,
   });
-
   const [showToast, setShowToast] = useState(false);
+  const [toastMsg, setToastMsg] = useState("");
   const [errors, setErrors] = useState({});
-
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [editingItemIndex, setEditingItemIndex] = useState(null);
-  const [itemForm, setItemForm] = useState({
-    description: "",
-    quantity: "",
-    price: "",
-    unit: "m²",
-    iva: 21,
-  });
-
+  const [itemForm, setItemForm] = useState({ description: "", quantity: "", price: "", unit: "m²", iva: 21 });
   const [loaded, setLoaded] = useState(false);
 
-useEffect(() => {
-  if (editingId) {
-    const facturas = JSON.parse(localStorage.getItem('facturas') || '[]');
-    const presupuestos = JSON.parse(localStorage.getItem('presupuestos') || '[]');
-    const saved = JSON.parse(localStorage.getItem('savedInvoices') || '[]');
-    const found = [...facturas, ...presupuestos, ...saved].find(d => d.id === editingId);
-    if (found) {
-      setFormData(found);
-      if (found.documentType) setDocumentType(found.documentType);
+  /* ─── Load on edit ───────────────────────────────────────────────────── */
+  useEffect(() => {
+    if (!editingId) { setLoaded(true); return; }
+    // Try in-memory first (fast), then async fetch if not found yet
+    const inMem = findDocById(editingId);
+    if (inMem) {
+      setFormData(inMem);
+      if (inMem.documentType) setDocumentType(inMem.documentType);
+      setLoaded(true);
+    } else {
+      // Might not be in context yet — fetch directly
+      Promise.all([
+        import("../services/db.js").then(m => m.facturasSvc.getById(editingId)),
+        import("../services/db.js").then(m => m.presupuestosSvc.getById(editingId)),
+        import("../services/db.js").then(m => m.borradoresSvc.getById(editingId)),
+      ]).then(([f, p, b]) => {
+        const found = f || p || b;
+        if (found) {
+          setFormData(found);
+          if (found.documentType) setDocumentType(found.documentType);
+        }
+        setLoaded(true);
+      });
     }
-  }
-  setLoaded(true);
-}, [editingId]);
+  }, [editingId]); // eslint-disable-line
 
-useEffect(() => {
-  if (!loaded) return;
-  if (issueNow && formData.id) {
-    const issued = { ...formData, documentType: "factura", facturada: true };
+  useEffect(() => {
+    if (!loaded) return;
+    if (issueNow && formData.id) {
+      const issued = { ...formData, documentType: "factura", facturada: true };
+      upsertFactura(issued);
+      // mark the draft as facturada too (keep it visible)
+      upsertBorrador({ ...formData, facturada: true });
+      setFormData(issued);
+    }
+  }, [issueNow, formData.id, loaded]); // eslint-disable-line
 
-    // Guarda/actualiza en "facturas"
-    const facturas = JSON.parse(localStorage.getItem("facturas") || "[]");
-    const fx = facturas.findIndex(d => d.id === issued.id);
-    if (fx >= 0) facturas[fx] = issued; else facturas.push(issued);
-    localStorage.setItem("facturas", JSON.stringify(facturas));
+  useEffect(() => {
+    if (!loaded) return;
+    if (autoPDF) {
+      (async () => {
+        if (!validate()) return;
+        await generatePDF();
+      })();
+    }
+  }, [autoPDF, loaded]);
 
-    // 👇 NO tocar "savedInvoices": mantenemos el borrador visible en la lista
-    // (Si quieres marcar el borrador como "ya facturado", puedes actualizar ese objeto también)
-    try {
-      const drafts = JSON.parse(localStorage.getItem("savedInvoices") || "[]");
-      const ix = drafts.findIndex(d => d.id === issued.id);
-      if (ix >= 0) {
-        drafts[ix] = { ...drafts[ix], facturada: true, documentType: "presupuesto" }; 
-        localStorage.setItem("savedInvoices", JSON.stringify(drafts));
-      }
-    } catch {}
-
-    setFormData(issued);
-    // Si fijaste el tipo por prop, puedes omitir esta línea:
-    // setDocumentType("factura");
-  }
-}, [issueNow, formData.id, loaded]);
-
-useEffect(() => {
-  if (!loaded) return;
-  if (autoPDF) {
-    (async () => {
-      if (!validate()) return;
-      await generatePDF();
-    })();
-  }
-}, [autoPDF, loaded]);
-
-
+  /* ─── Handlers ───────────────────────────────────────────────────────── */
   const handleChange = (e) => {
     const { id, value } = e.target;
     setFormData({ ...formData, [id]: value });
   };
 
-  const handleDocumentTypeChange = (value) => {
-    setDocumentType(value);
-  };
-
-  // >>> Número autoformateado AAAA_NNNN (si escribes "9" -> 2025_0009)
   const handleInvoiceNumberBlur = () => {
     let numberPart = String(formData.numero || "").trim();
-    if (!numberPart) return; // no sobrescribir si está vacío
-
-    // Si el usuario puso separador, nos quedamos con la parte numérica final
+    if (!numberPart) return;
     numberPart = numberPart.split(/[/_]/).pop();
-
-    const padded = String(parseInt(numberPart, 10))
-      .replace(/NaN/, "")
-      .padStart(4, "0");
-
-    const year = (formData.fecha instanceof Date
-      ? formData.fecha.getFullYear()
-      : new Date().getFullYear());
-
-    // Formato: AAAA_NNNN (ej. 2025_0009)
+    const padded = String(parseInt(numberPart, 10)).replace(/NaN/, "").padStart(4, "0");
+    const year = formData.fecha instanceof Date ? formData.fecha.getFullYear() : new Date().getFullYear();
     setFormData({ ...formData, numero: `${year}_${padded}` });
-  };
-
-  const handleDateChange = (date) => {
-    setFormData({ ...formData, fecha: date });
   };
 
   const openAddItemModal = () => {
@@ -146,13 +256,7 @@ useEffect(() => {
   const openEditItemModal = (index) => {
     const item = formData.items[index];
     setEditingItemIndex(index);
-    setItemForm({
-      description: item.description,
-      quantity: item.quantity,
-      price: item.price,
-      unit: item.unit,
-      iva: item.iva || formData.iva,
-    });
+    setItemForm({ description: item.description, quantity: item.quantity, price: item.price, unit: item.unit, iva: item.iva || formData.iva });
     setIsItemModalOpen(true);
   };
 
@@ -163,7 +267,7 @@ useEffect(() => {
 
   const handleSaveItem = () => {
     if (!itemForm.description.trim() || isNaN(itemForm.quantity) || isNaN(itemForm.price)) {
-      alert("Por favor, completa la descripción, cantidad y precio correctamente.");
+      alert("Completa descripción, cantidad y precio.");
       return;
     }
     const quantity = parseFloat(itemForm.quantity);
@@ -171,225 +275,106 @@ useEffect(() => {
     const serviceIva = parseFloat(itemForm.iva) || formData.iva;
     const subtotal = quantity * price;
     const ivaAmount = subtotal * (serviceIva / 100);
-    const total = subtotal + ivaAmount;
-
     const newItem = {
-      description: itemForm.description,
-      quantity,
-      price,
-      unit: itemForm.unit,
-      iva: serviceIva,
-      total: subtotal,
-      ivaAmount,
-      totalWithIVA: total,
+      description: itemForm.description, quantity, price,
+      unit: itemForm.unit, iva: serviceIva,
+      total: subtotal, ivaAmount, totalWithIVA: subtotal + ivaAmount,
     };
-
-    let newItems = [...formData.items];
-    if (editingItemIndex !== null) {
-      newItems[editingItemIndex] = newItem;
-    } else {
-      newItems.push(newItem);
-    }
+    const newItems = [...formData.items];
+    if (editingItemIndex !== null) newItems[editingItemIndex] = newItem;
+    else newItems.push(newItem);
     setFormData({ ...formData, items: newItems });
     setIsItemModalOpen(false);
   };
 
-  // >>> VALIDACIÓN ARREGLADA (acepta AAAA_NNNN o AAAA/NNNN)
+  /* ─── Validation ─────────────────────────────────────────────────────── */
   const validate = () => {
-    let newErrors = {};
-    const num = String(formData.numero || '').trim();
-
-    if (!num) {
-      newErrors.numero = "El número de documento es obligatorio";
-    } else if (!/^\d{4}\s*[_/]\s*\d{1,4}$/.test(num)) {
-      newErrors.numero = "Formato válido: AAAA_0001 (o AAAA/0001)";
-    }
-
-    if (!formData.fecha) newErrors.fecha = "La fecha es obligatoria";
-    if (!formData.clienteNombre?.trim()) newErrors.clienteNombre = "El nombre del cliente es obligatorio";
-
-    if (!formData.clienteCIF?.trim()) {
-      newErrors.clienteCIF = "El CIF/NIF es obligatorio";
-    } else if (
-      !/^(?:[0-9]{8}[A-Z]|[XYZ]\d{7}[A-Z]|[ABCDEFGHJNPQRSUVW]\d{7}[0-9A-J])$/.test(
-        formData.clienteCIF.trim()
-      )
-    ) {
-      newErrors.clienteCIF = "Formato de CIF/NIF no válido";
-    }
-
-    if (!formData.clienteDireccion?.trim()) newErrors.clienteDireccion = "La dirección es obligatoria";
-
-    if (!formData.clienteCP?.trim()) {
-      newErrors.clienteCP = "El código postal es obligatorio";
-    } else if (!/^\d{5}$/.test(formData.clienteCP.trim())) {
-      newErrors.clienteCP = "El código postal debe tener 5 dígitos";
-    }
-
-    if (!formData.clienteLocalidad?.trim()) newErrors.clienteLocalidad = "La localidad es obligatoria";
-    if (!formData.clienteProvincia?.trim()) newErrors.clienteProvincia = "La provincia es obligatoria";
-
-    if (isNaN(formData.iva) || formData.iva < 0 || formData.iva > 100) {
-      newErrors.iva = "El IVA debe estar entre 0 y 100";
-    }
-
-    if (!Array.isArray(formData.items) || formData.items.length === 0) {
-      newErrors.items = "Debe agregar al menos un servicio/artículo";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const e = {};
+    const num = String(formData.numero || "").trim();
+    if (!num) e.numero = "Número obligatorio";
+    else if (!/^\d{4}\s*[_/]\s*\d{1,4}$/.test(num)) e.numero = "Formato: AAAA_0001";
+    if (!formData.fecha) e.fecha = "Fecha obligatoria";
+    if (!formData.clienteNombre?.trim()) e.clienteNombre = "Nombre del cliente obligatorio";
+    if (!formData.clienteCIF?.trim()) e.clienteCIF = "CIF/NIF obligatorio";
+    else if (!/^(?:[0-9]{8}[A-Z]|[XYZ]\d{7}[A-Z]|[ABCDEFGHJNPQRSUVW]\d{7}[0-9A-J])$/.test(formData.clienteCIF.trim()))
+      e.clienteCIF = "Formato de CIF/NIF no válido";
+    if (!formData.clienteDireccion?.trim()) e.clienteDireccion = "Dirección obligatoria";
+    if (!formData.clienteCP?.trim()) e.clienteCP = "Código postal obligatorio";
+    else if (!/^\d{5}$/.test(formData.clienteCP.trim())) e.clienteCP = "5 dígitos";
+    if (!formData.clienteLocalidad?.trim()) e.clienteLocalidad = "Localidad obligatoria";
+    if (!formData.clienteProvincia?.trim()) e.clienteProvincia = "Provincia obligatoria";
+    if (isNaN(formData.iva) || formData.iva < 0 || formData.iva > 100) e.iva = "IVA 0–100";
+    if (!Array.isArray(formData.items) || formData.items.length === 0) e.items = "Añade al menos un servicio";
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
-  function upsertLS(key, doc) {
+  /* ─── DB helpers (context wrappers) ─────────────────────────────────── */
+  // kept for the inline "Emitir Factura" button logic below
+  function _upsertLS(key, doc) {
     const arr = JSON.parse(localStorage.getItem(key) || "[]");
-    const idx = arr.findIndex(d => d.id === doc.id);
+    const idx = arr.findIndex((d) => d.id === doc.id);
     if (idx >= 0) arr[idx] = doc; else arr.push(doc);
     localStorage.setItem(key, JSON.stringify(arr));
   }
-  
-  function removeFromLS(key, id) {
-    const arr = JSON.parse(localStorage.getItem(key) || "[]");
-    const next = arr.filter(d => d.id !== id);
-    localStorage.setItem(key, JSON.stringify(next));
-  }
-  
-  function computeTotals(doc) {
-    const base  = (doc.items || []).reduce((s, x) => s + (x.total ?? (Number(x.quantity)*Number(x.price))), 0);
-    const iva   = (doc.items || []).reduce((s, x) => s + (x.ivaAmount ?? (Number(x.quantity)*Number(x.price)*(Number(x.iva)/100))), 0);
-    const total = base + iva;
-    return { base, iva, total };
-  }
-  
 
+  /* ─── PDF Generation ─────────────────────────────────────────────────── */
   const generatePDF = async () => {
-        // --- guardar PDF con "Guardar como..." (sin crear carpetas) ---
     async function savePDFFile(doc, filename) {
       const soportaPicker = typeof window.showSaveFilePicker === "function";
-      if (!soportaPicker) {
-        // Fallback: descarga directa
-        doc.save(filename);
-        return false;
-      }
+      if (!soportaPicker) { doc.save(filename); return false; }
       try {
         const handle = await window.showSaveFilePicker({
           suggestedName: filename,
-          types: [
-            {
-              description: "PDF",
-              accept: { "application/pdf": [".pdf"] },
-            },
-          ],
+          types: [{ description: "PDF", accept: { "application/pdf": [".pdf"] } }],
         });
         const writable = await handle.createWritable();
         await writable.write(doc.output("blob"));
         await writable.close();
         return true;
       } catch (e) {
-        console.warn("Guardado cancelado o fallido. Uso descarga directa:", e);
+        console.warn("Guardado cancelado:", e);
         doc.save(filename);
         return false;
       }
     }
-  
-    async function updateBalanceCSV(balanceRootHandle) {
-      const facturas = (JSON.parse(localStorage.getItem("facturas") || "[]") || [])
-        .filter(f => f.facturada && Array.isArray(f.items) && f.items.length);
-  
-      const sum = facturas.reduce((acc, f) => {
-        const base  = f.items.reduce((s, x) => s + (x.total ?? (Number(x.quantity)*Number(x.price))), 0);
-        const iva   = f.items.reduce((s, x) => s + (x.ivaAmount ?? (Number(x.quantity)*Number(x.price)*(Number(x.iva)/100))), 0);
-        const total = base + iva;
-        acc.base += base; acc.iva += iva; acc.total += total; acc.beneficio += base;
-        return acc;
-      }, { base: 0, iva: 0, total: 0, beneficio: 0 });
-  
-      const header = ["Fecha","Número","Cliente","Base","IVA","Total"];
-      const rows = facturas.map(f => {
-        const base  = f.items.reduce((s, x) => s + (x.total ?? (Number(x.quantity)*Number(x.price))), 0);
-        const iva   = f.items.reduce((s, x) => s + (x.ivaAmount ?? (Number(x.quantity)*Number(x.price)*(Number(x.iva)/100))), 0);
-        const total = base + iva;
-  
-        let fecha = "";
-        if (f.fecha instanceof Date) {
-          const y=f.fecha.getFullYear(), m=String(f.fecha.getMonth()+1).padStart(2,"0"), d=String(f.fecha.getDate()).padStart(2,"0");
-          fecha = `${d}/${m}/${y}`;
-        } else if (typeof f.fecha === "string") {
-          fecha = f.fecha;
-        }
-  
-        return [
-          `"${fecha}"`,
-          `"${f.numero || ""}"`,
-          `"${(f.clienteNombre || "").replace(/"/g,'""')}"`,
-          base.toFixed(2),
-          iva.toFixed(2),
-          total.toFixed(2),
-        ].join(",");
-      });
-  
-      rows.unshift(header.join(","));
-      rows.push("");
-      rows.push([ "", "", '"TOTALES"', sum.base.toFixed(2), sum.iva.toFixed(2), sum.total.toFixed(2) ].join(","));
-      rows.push([ "", "", '"BENEFICIO (estim.)"', sum.beneficio.toFixed(2), "", "" ].join(","));
-  
-      const csv = rows.join("\n");
-  
-      const fileHandle = await balanceRootHandle.getFileHandle("Resumen Balance.csv", { create: true });
-      const writable = await fileHandle.createWritable();
-      await writable.write(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-      await writable.close();
-    }
-  
+
     try {
-      // === 1) Datos y nombre de archivo (primero calculamos TODO) ===
       const {
         numero, clienteNombre, clienteApellidos,
         clienteCIF, clienteDireccion, clienteCP, clienteLocalidad, clienteProvincia,
-        iva: ivaPctGlobal, items: servicios, comentarios
+        iva: ivaPctGlobal, items: servicios, comentarios,
       } = formData;
-  
+
       const {
         companyName = "Mi Empresa", nif = "", phone = "",
         street = "", postalCode = "", locality = "", community = "",
-        bank = "", accountNumber = "", holder = ""
+        bank = "", accountNumber = "", holder = "",
       } = business || {};
-  
+
       const normalizeNumAndYear = (raw) => {
-        let yearPart = ""; let numPart = "";
         const t = String(raw || "").trim();
+        let yearPart = "", numPart = "";
         if (/^\d{4}\s*[_/]\s*\d{1,4}$/.test(t)) {
-          [yearPart, numPart] = t.split(/[/_]/).map(s => s.trim());
-        } else if (/^\d{1,4}\s*[_/]\s*\d{4}$/.test(t)) {
-          const parts = t.split(/[/_]/).map(s => s.trim());
-          numPart = parts[0]; yearPart = parts[1];
+          [yearPart, numPart] = t.split(/[/_]/).map((s) => s.trim());
         } else {
           yearPart = String(new Date().getFullYear());
-          numPart  = String(parseInt(t, 10) || 0);
+          numPart = String(parseInt(t, 10) || 0);
         }
-        const num4  = String(parseInt(numPart, 10)).padStart(4, "0");
-        const year4 = String(parseInt(yearPart, 10)).padStart(4, "0");
-        return { year4, num4 };
+        return { year4: String(parseInt(yearPart)).padStart(4, "0"), num4: String(parseInt(numPart)).padStart(4, "0") };
       };
+
       const { year4: nfYear, num4: nfNum } = normalizeNumAndYear(numero);
       const fileNumNormalized = `${nfYear}_${nfNum}`;
-  
-      const cliCompleto =
-        [clienteNombre, clienteApellidos].filter(Boolean).join(" ").trim();
-  
-      const cliForFile = (cliCompleto || "Cliente")
-        .replace(/[\\/:*?"<>|]+/g, "_")
-        .replace(/\s+/g, " ");
-  
+      const cliCompleto = [clienteNombre, clienteApellidos].filter(Boolean).join(" ").trim();
+      const cliForFile = (cliCompleto || "Cliente").replace(/[\\/:*?"<>|]+/g, "_").replace(/\s+/g, " ");
       const mlnPrefix = documentType === "factura" ? "Factura MLN" : "Presupuesto MLN";
       const filename = `${mlnPrefix} - ${cliForFile} - ${fileNumNormalized}.pdf`;
-  
-      // Totales (para la tabla de totales del PDF)
-      const totalBase  = (servicios || []).reduce((s, x) => s + (x.total ?? (x.quantity * x.price)), 0);
-      const totalIVA   = (servicios || []).reduce((s, x) => s + (x.ivaAmount ?? (x.quantity * x.price * ((x.iva ?? ivaPctGlobal) / 100))), 0);
+
+      const totalBase  = (servicios || []).reduce((s, x) => s + (x.total ?? x.quantity * x.price), 0);
+      const totalIVA   = (servicios || []).reduce((s, x) => s + (x.ivaAmount ?? x.quantity * x.price * ((x.iva ?? ivaPctGlobal) / 100)), 0);
       const totalFinal = totalBase + totalIVA;
-  
-      // Fecha para cabecera
+
       let fechaStrES = "";
       if (formData.fecha instanceof Date) {
         const y = formData.fecha.getFullYear();
@@ -398,13 +383,13 @@ useEffect(() => {
         fechaStrES = `${d}/${m}/${y}`;
       } else if (typeof formData.fecha === "string" && formData.fecha) {
         const parts = formData.fecha.replace(/\./g, "-").replace(/\//g, "-").split("-");
-        fechaStrES = parts.length === 3 ? `${parts[2].padStart(2,"0")}/${parts[1].padStart(2,"0")}/${parts[0]}` : formData.fecha;
+        fechaStrES = parts.length === 3 ? `${parts[2].padStart(2, "0")}/${parts[1].padStart(2, "0")}/${parts[0]}` : formData.fecha;
       } else {
         const now = new Date();
-        fechaStrES = `${String(now.getDate()).padStart(2,"0")}/${String(now.getMonth()+1).padStart(2,"0")}/${now.getFullYear()}`;
+        fechaStrES = `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()}`;
       }
-  
-      // === 2) Carga opcional de logo y firma (antes de pintar) ===
+
+      // Load logo
       let pngDataUrl = null;
       try {
         const resp = await fetch("/logo.svg");
@@ -413,79 +398,66 @@ useEffect(() => {
           const svgBase64 = window.btoa(unescape(encodeURIComponent(svgText)));
           const img = new Image();
           img.src = "data:image/svg+xml;base64," + svgBase64;
-          await (img.decode ? img.decode() : new Promise(res => (img.onload = res)));
+          await (img.decode ? img.decode() : new Promise((res) => (img.onload = res)));
           const canvas = document.createElement("canvas");
-          const size = 300;
-          canvas.width = size; canvas.height = size;
+          canvas.width = 300; canvas.height = 300;
           const ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0, size, size);
+          ctx.drawImage(img, 0, 0, 300, 300);
           pngDataUrl = canvas.toDataURL("image/png");
         }
       } catch {}
-  
+
+      // Load signature
       let signaturePng = null;
-      async function loadSvgAsPngDataUrl(svgPath, size = 600) {
+      async function loadSvgAsPng(svgPath, size = 600) {
         const resp = await fetch(svgPath);
         if (!resp.ok) return null;
         const svgText = await resp.text();
         const svgBase64 = window.btoa(unescape(encodeURIComponent(svgText)));
         const img = new Image();
         img.src = "data:image/svg+xml;base64," + svgBase64;
-        await (img.decode ? img.decode() : new Promise(res => (img.onload = res)));
+        await (img.decode ? img.decode() : new Promise((res) => (img.onload = res)));
         const canvas = document.createElement("canvas");
         canvas.width = size; canvas.height = size;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, size, size);
+        canvas.getContext("2d").drawImage(img, 0, 0, size, size);
         return canvas.toDataURL("image/png");
       }
-      try { signaturePng = await loadSvgAsPngDataUrl("/firma.svg", 800); } catch {}
+      try { signaturePng = await loadSvgAsPng("/firma.svg", 800); } catch {}
       if (!signaturePng) {
-        try {
-          const r = await fetch("/firma.png");
-          if (r.ok) {
-            const blob = await r.blob();
-            signaturePng = await new Promise(res => {
-              const fr = new FileReader();
-              fr.onload = () => res(fr.result);
-              fr.readAsDataURL(blob);
-            });
-          }
-        } catch {}
+        for (const ext of ["/firma.png", "/firma.jpg"]) {
+          try {
+            const r = await fetch(ext);
+            if (r.ok) {
+              const blob = await r.blob();
+              signaturePng = await new Promise((res) => {
+                const fr = new FileReader();
+                fr.onload = () => res(fr.result);
+                fr.readAsDataURL(blob);
+              });
+              break;
+            }
+          } catch {}
+        }
       }
-      if (!signaturePng) {
-        try {
-          const r = await fetch("/firma.jpg");
-          if (r.ok) {
-            const blob = await r.blob();
-            signaturePng = await new Promise(res => {
-              const fr = new FileReader();
-              fr.onload = () => res(fr.result);
-              fr.readAsDataURL(blob);
-            });
-          }
-        } catch {}
-      }
-  
-      // === 3) Crear el PDF y dibujar (ahora SÍ existe `doc`) ===
+
+      // Create PDF
       const doc = new jsPDF({ unit: "mm", format: "a4" });
       const title = documentType === "factura" ? "Factura" : "Presupuesto";
-  
-      const MARGINS  = { top: 20, right: 20, bottom: 20, left: 20 };
+      const MARGINS = { top: 20, right: 20, bottom: 20, left: 20 };
       const HEADER_H = 38;
       const FOOTER_H = 12;
+
       const box = (pdf) => {
         const pageW = pdf.internal.pageSize.getWidth();
         const pageH = pdf.internal.pageSize.getHeight();
         const contentW = pageW - MARGINS.left - MARGINS.right;
-        const safeTop = MARGINS.top + HEADER_H;
-        const safeBottom = pageH - MARGINS.bottom - FOOTER_H;
-        return { pageW, pageH, contentW, safeTop, safeBottom };
+        return { pageW, pageH, contentW, safeTop: MARGINS.top + HEADER_H, safeBottom: pageH - MARGINS.bottom - FOOTER_H };
       };
+
       let cursorY = null;
       const resetCursor = (pdf) => { cursorY = box(pdf).safeTop; };
       const ensureSpace = (pdf, needed) => {
-        const { safeBottom } = box(pdf);
-        if (cursorY + needed > safeBottom) {
+        if (cursorY + needed > box(pdf).safeBottom) {
           pdf.addPage(); drawHeaderFooter(pdf); cursorY = box(pdf).safeTop;
         }
       };
@@ -498,74 +470,58 @@ useEffect(() => {
         pdf.text(lines, MARGINS.left, cursorY, { maxWidth: contentW, align });
         cursorY += needed + 3;
       };
-  
+
       function drawHeaderFooter(pdf) {
         const { pageW, pageH } = box(pdf);
-        pdf.setFontSize(11).setTextColor(30).setFont(undefined, "bold");
-        pdf.text(title.toUpperCase(), MARGINS.left, MARGINS.top + 9);
-  
-        const badgePadX = 6; const badgePadY = 0; const gapY = 1;
+        const badgePadX = 6; const gapY = 1;
         const smallDate = fechaStrES ? `Fecha: ${fechaStrES}` : "";
         const { year4, num4 } = normalizeNumAndYear(formData.numero);
         const mainLine = `${title}: ${num4} / ${year4}`;
-  
+
         pdf.setFont(undefined, "normal").setFontSize(8);
         const wDate = smallDate ? doc.getTextWidth(smallDate) : 0;
         pdf.setFont(undefined, "bold").setFontSize(12);
         const wMain = doc.getTextWidth(mainLine);
-  
         const badgeW = Math.max(wDate, wMain) + badgePadX * 2;
-        const badgeH = (smallDate ? 8 : 0) + gapY + 12 + badgePadY * 2;
-        const badgeX = MARGINS.left;
+        const badgeH = (smallDate ? 8 : 0) + gapY + 12 + 4;
         const badgeY = MARGINS.top + 4;
-  
-        doc.setFillColor(230); doc.setDrawColor(200);
-        doc.rect(badgeX, badgeY, badgeW, badgeH, "FD");
-  
+
+        doc.setFillColor(240).setDrawColor(200);
+        doc.rect(MARGINS.left, badgeY, badgeW, badgeH, "FD");
+
         if (smallDate) {
           doc.setFont(undefined, "normal").setFontSize(8).setTextColor(90);
-          doc.text(smallDate, badgeX + badgePadX, badgeY + badgePadY + 6);
+          doc.text(smallDate, MARGINS.left + badgePadX, badgeY + 6);
         }
         doc.setFont(undefined, "bold").setFontSize(12).setTextColor(0);
-        const mainY = badgeY + badgePadY + (smallDate ? 6 + gapY : 0) + 10;
-        doc.text(mainLine, badgeX + badgePadX, mainY);
-  
+        doc.text(mainLine, MARGINS.left + badgePadX, badgeY + (smallDate ? 6 + gapY : 0) + 10);
+
         doc.setDrawColor(210);
         doc.line(MARGINS.left, pageH - MARGINS.bottom - FOOTER_H, pageW - MARGINS.right, pageH - MARGINS.bottom - FOOTER_H);
         const p = doc.getCurrentPageInfo().pageNumber;
         doc.setFontSize(9).setTextColor(90).setFont(undefined, "normal");
         doc.text(`Página ${p}`, pageW - MARGINS.right, pageH - MARGINS.bottom + 3, { align: "right" });
       }
-  
+
       function drawParties(pdf) {
         const { contentW } = box(pdf);
         const colW = (contentW - 10) / 2;
         const y0 = cursorY;
-  
         ensureSpace(pdf, 40);
         pdf.setFillColor(240).rect(MARGINS.left, y0 - 6, colW, 36, "F");
         pdf.setFillColor(240).rect(MARGINS.left + colW + 10, y0 - 6, colW, 36, "F");
-  
         pdf.setFontSize(10).setTextColor(0).setFont(undefined, "bold");
         pdf.text(companyName, MARGINS.left + 2, y0);
         pdf.setFont(undefined, "normal");
-        pdf.text(
-          [`NIF/CIF: ${nif}`, `Tel: ${phone}`, `Dir: ${street}, ${postalCode} ${locality} (${community})`],
-          MARGINS.left + 2, y0 + 6, { maxWidth: colW - 6 }
-        );
-  
+        pdf.text([`NIF/CIF: ${nif}`, `Tel: ${phone}`, `${street}, ${postalCode} ${locality} (${community})`], MARGINS.left + 2, y0 + 6, { maxWidth: colW - 6 });
         const nombreCliente = [clienteNombre, clienteApellidos].filter(Boolean).join(" ");
         pdf.setFont(undefined, "bold");
         pdf.text("Cliente:", MARGINS.left + colW + 12, y0);
         pdf.setFont(undefined, "normal");
-        pdf.text(
-          [nombreCliente, clienteCIF, clienteDireccion, `${clienteCP} - ${clienteLocalidad}, ${clienteProvincia}`],
-          MARGINS.left + colW + 12, y0 + 6, { maxWidth: colW - 6 }
-        );
-  
+        pdf.text([nombreCliente, clienteCIF, clienteDireccion, `${clienteCP} - ${clienteLocalidad}, ${clienteProvincia}`], MARGINS.left + colW + 12, y0 + 6, { maxWidth: colW - 6 });
         cursorY += 36 + 8;
       }
-  
+
       function drawItemsTable(pdf) {
         if (comentarios?.trim()) {
           pdf.setFontSize(10).setFont(undefined, "bold");
@@ -579,19 +535,15 @@ useEffect(() => {
           cursorY += 4;
         }
         if (!servicios?.length) return;
-  
         const { contentW } = box(pdf);
         const startY = cursorY;
         const fixed = { idx: 10, cant: 16, und: 16, pUnit: 22, ivaPct: 16, ivaAmt: 22, total: 26 };
-        const fixedTotal = fixed.idx + fixed.cant + fixed.und + fixed.pUnit + fixed.ivaPct + fixed.ivaAmt + fixed.total;
+        const fixedTotal = Object.values(fixed).reduce((a, b) => a + b, 0);
         const descWidth = Math.max(40, contentW - fixedTotal - 2);
-  
+
         autoTable(pdf, {
           startY,
-          margin: {
-            left: MARGINS.left, right: MARGINS.right,
-            top: MARGINS.top + HEADER_H, bottom: MARGINS.bottom + FOOTER_H,
-          },
+          margin: { left: MARGINS.left, right: MARGINS.right, top: MARGINS.top + HEADER_H, bottom: MARGINS.bottom + FOOTER_H },
           tableWidth: contentW,
           theme: "grid",
           head: [["#", "Descripción", "Cant.", "Und.", "P.Unit €", "IVA%", "IVA €", "Total €"]],
@@ -621,28 +573,25 @@ useEffect(() => {
           pageBreak: "auto",
           didDrawPage: () => drawHeaderFooter(pdf),
         });
-  
         cursorY = (doc.lastAutoTable?.finalY ?? startY) + 6;
       }
-  
-      function drawTotals(pdf, signaturePng) {
+
+      function drawTotals(pdf, sig) {
         const { pageW } = box(pdf);
         ensureSpace(pdf, 40);
-  
         pdf.setDrawColor(0).setLineWidth(0.2);
         pdf.line(MARGINS.left, cursorY, pageW - MARGINS.right, cursorY);
         cursorY += 6;
-  
-        pdf.setFontSize(12);
+
         const rightX = pageW - MARGINS.right;
+        pdf.setFontSize(12);
         pdf.text(`Base: ${totalBase.toFixed(2)} €`, rightX, cursorY, { align: "right" });
         pdf.text(`IVA:  ${totalIVA.toFixed(2)} €`, rightX, cursorY + 8, { align: "right" });
         pdf.setFont(undefined, "bold");
         pdf.text(`Total: ${totalFinal.toFixed(2)} €`, rightX, cursorY + 16, { align: "right" });
         pdf.setFont(undefined, "normal");
-  
         cursorY += 28;
-  
+
         ensureSpace(pdf, 36);
         pdf.setFontSize(11).setFont(undefined, "bold").text("Datos de Pago:", MARGINS.left, cursorY);
         pdf.setFont(undefined, "normal").setFontSize(10);
@@ -650,369 +599,302 @@ useEffect(() => {
         pdf.text(`Cuenta: ${accountNumber}`, MARGINS.left, cursorY + 16);
         pdf.text(`Titular: ${holder}`, MARGINS.left, cursorY + 24);
         cursorY += 36;
-  
+
         ensureSpace(pdf, 16);
-        pdf.setFontSize(11);
-  
         const rightBlockW = 60;
         const rightX2 = pageW - MARGINS.right;
         const rightX1 = rightX2 - rightBlockW;
-  
+        pdf.setFontSize(11);
         pdf.text("Firma Cliente:", MARGINS.left, cursorY);
         pdf.line(MARGINS.left, cursorY + 5, MARGINS.left + 60, cursorY + 5);
-  
         pdf.text("Firma Empresa:", rightX1, cursorY, { align: "left" });
         const lineY = cursorY + 5;
-  
-        if (signaturePng) {
+        if (sig) {
           const targetW = 38, targetH = 16;
           const sigX = rightX1 + (rightBlockW - targetW) / 2;
-          const sigY = lineY + 1.5;
           ensureSpace(pdf, targetH + 8);
-          pdf.addImage(signaturePng, "PNG", sigX, sigY, targetW, targetH);
+          pdf.addImage(sig, "PNG", sigX, lineY + 1.5, targetW, targetH);
         }
         pdf.line(rightX1, lineY, rightX2, lineY);
-  
         cursorY += 18;
       }
-  
-      // ensamblado
+
       drawHeaderFooter(doc);
       resetCursor(doc);
       drawParties(doc);
       drawItemsTable(doc);
       drawTotals(doc, signaturePng);
-  
-      // marca de agua
+
+      // Watermark
       if (pngDataUrl) {
         const { pageW, pageH } = box(doc);
         const pages = doc.internal.getNumberOfPages();
         for (let p = 1; p <= pages; p++) {
           doc.setPage(p);
-          // @ts-ignore
           doc.setGState(new doc.GState({ opacity: 0.08 }));
           doc.addImage(pngDataUrl, "PNG", pageW / 2 - 30, pageH / 2 - 30, 60, 60);
           doc.setGState(new doc.GState({ opacity: 1 }));
         }
       }
-  
-      // === 4) Guardar y navegar (AHORA sí tenemos doc y filename) ===
+
       await savePDFFile(doc, filename);
-  
       navigate(-1);
     } catch (err) {
       console.error("Error al generar PDF:", err);
-      alert("Ha ocurrido un error al generar el PDF. Revisa consola.");
+      alert("Error al generar el PDF. Ver consola.");
     }
-  };  
+  };
 
-  const handleSubmit = (e) => {
+  /* ─── Submit ─────────────────────────────────────────────────────────── */
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
-
-    // Clave coherente por tipo
-    const key = documentType === "factura" ? "facturas" : "presupuestos";
-    const saved = JSON.parse(localStorage.getItem(key) || "[]");
-
-    // Asegurar ID y persistencia (crear/actualizar)
     const docWithId = formData.id ? formData : { ...formData, id: uuidv4(), createdAt: Date.now() };
-    const idx = saved.findIndex((d) => d.id === docWithId.id);
     const enriched = { ...docWithId, documentType };
-    if (idx >= 0) saved[idx] = enriched;
-    else saved.push(enriched);
-    localStorage.setItem(key, JSON.stringify(saved));
-
-    setShowToast(true);
+    if (documentType === "factura") await upsertFactura(enriched);
+    else                            await upsertPresupuesto(enriched);
+    flash("Documento guardado. Generando PDF...");
     generatePDF();
+  };
+
+  const flash = (msg) => {
+    setToastMsg(msg);
+    setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
   };
 
+  /* ─── Totals ─────────────────────────────────────────────────────────── */
+  const totalBase  = formData.items.reduce((s, x) => s + Number(x.quantity) * Number(x.price), 0);
+  const totalIva   = formData.items.reduce((s, x) => s + Number(x.ivaAmount ?? Number(x.quantity) * Number(x.price) * (Number(x.iva) / 100)), 0);
+  const totalFinal = totalBase + totalIva;
+
+  /* ─── Render ─────────────────────────────────────────────────────────── */
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center px-4 py-8 bg-gradient-to-br from-blue-400 to-purple-300">
-      <div className="w-full max-w-6xl bg-white rounded-2xl shadow-xl p-8 md:p-10">
-        {/* Encabezado: Título y Toggle */}
-        <div className="mb-8 text-center">
-          <h1 className="text-4xl font-extrabold text-gray-800">
-            📂 Generador de {documentType === "factura" ? "Factura" : "Presupuesto"}
-          </h1>
-          <div className="flex justify-center mt-4 space-x-4">
-            <button
-              type="button"
-              onClick={() => handleDocumentTypeChange("presupuesto")}
-              className={`px-5 py-2 rounded-full transition-transform duration-150 hover:scale-105 ${
-                documentType === "presupuesto"
-                  ? "bg-blue-600 text-white shadow-lg"
-                  : "bg-white border border-blue-600 text-blue-600"
-              }`}
-            >
-              Presupuesto
+    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-5">
+      {/* Type switcher + Facturar */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1 self-start">
+          {["presupuesto", "factura"].map((type) => (
+            <button key={type} type="button"
+              onClick={() => setDocumentType(type)}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                documentType === type
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}>
+              {type === "presupuesto" ? "Presupuesto" : "Factura"}
             </button>
-            <button
-            type="button"
-            onClick={async () => {
-              if (!validate()) return;
-
-              // 1) Preparar doc emitido
-              const docWithId = formData.id ? formData : { ...formData, id: uuidv4(), createdAt: Date.now() };
-              const issued = { ...docWithId, documentType, facturada: true };
-
-              // 2) Guardar en facturas (emitidas)
-              upsertLS("facturas", issued);
-              // 3) Si existía como borrador, eliminarlo de savedInvoices
-              removeFromLS("savedInvoices", issued.id);
-
-              // 4) Generar PDF y copiar a BALANCE (si factura & facturada)
-              await generatePDF(/* ya usas */);
-
-              // 5) Toast ok (ya lo haces dentro de generatePDF -> navigate(-1))
-            }}
-            className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors duration-150"
-          >
-            Facturar 
-          </button>
-          </div>
+          ))}
         </div>
 
-        {/* Sección 1: Información General (Documento y Cliente) */}
-        <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 shadow-sm mb-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h2 className="text-xl font-semibold mb-4 text-gray-800">Datos del Documento</h2>
-            <div className="mb-4">
-              <label className="block text-gray-800 font-medium mb-1">
-                Nº {documentType === "presupuesto" ? "Presupuesto" : "Factura"}:
-              </label>
-              <input
-                type="text"
-                id="numero"
-                value={formData.numero}
-                onChange={handleChange}
+        <button type="button"
+          onClick={async () => {
+            if (!validate()) return;
+            const docWithId = formData.id ? formData : { ...formData, id: uuidv4(), createdAt: Date.now() };
+            const issued = { ...docWithId, documentType, facturada: true };
+            await upsertFactura(issued);
+            await removeBorrador(issued.id);
+            flash("Factura emitida. Generando PDF...");
+            await generatePDF();
+          }}
+          className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm">
+          Emitir Factura
+        </button>
+      </div>
+
+      {/* Main grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* Document info */}
+        <Section title="Datos del Documento">
+          <div className="space-y-4">
+            <Field label="Número" required error={errors.numero}
+              hint="Se formatea como AAAA_NNNN automáticamente">
+              <input type="text" id="numero" value={formData.numero} onChange={handleChange}
                 onBlur={handleInvoiceNumberBlur}
-                placeholder="Escribe solo el número (ej: 9)"
-                className={`w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.numero ? "border-red-500" : "border-gray-300"
-                }`}
-              />
-              {errors.numero && <p className="text-red-500 text-sm mt-1">{errors.numero}</p>}
-              <p className="text-xs text-gray-500 mt-1">
-                Se formatea automáticamente como <b>AAAA_NNNN</b> (p.ej. 2025_0009).
-              </p>
-            </div>
-            <div>
-              <label className="block text-gray-800 font-medium mb-1">Fecha:</label>
+                placeholder="Ej: 9 → 2025_0009"
+                className={inputCls(errors.numero)} />
+            </Field>
+            <Field label="Fecha" required error={errors.fecha}>
               <DatePicker
-                selected={
-                  formData.fecha instanceof Date
-                    ? formData.fecha
-                    : formData.fecha
-                    ? new Date(formData.fecha)
-                    : null
-                }
-                onChange={handleDateChange}
+                selected={formData.fecha instanceof Date ? formData.fecha : formData.fecha ? new Date(formData.fecha) : null}
+                onChange={(date) => setFormData({ ...formData, fecha: date })}
                 dateFormat="yyyy-MM-dd"
-                placeholderText="Selecciona la fecha"
-                className={`w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.fecha ? "border-red-500" : "border-gray-300"
-                }`}
+                placeholderText="Selecciona fecha"
+                className={inputCls(errors.fecha)}
+                wrapperClassName="w-full"
               />
-              {errors.fecha && <p className="text-red-500 text-sm mt-1">{errors.fecha}</p>}
-            </div>
+            </Field>
+            <Field label="IVA global (%)" error={errors.iva}>
+              <input type="number" id="iva" value={formData.iva} min="0" max="100"
+                onChange={handleChange} className={inputCls(errors.iva)} />
+            </Field>
           </div>
+        </Section>
 
-          <div>
-            <h2 className="text-xl font-semibold mb-4 text-gray-800">Datos del Cliente</h2>
-            <div className="mb-4">
-              <label className="block text-gray-800 font-medium mb-1">Nombre del Cliente:</label>
-              <input
-                type="text"
-                id="clienteNombre"
-                value={formData.clienteNombre}
-                onChange={handleChange}
-                className={`w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.clienteNombre ? "border-red-500" : "border-gray-300"
-                }`}
-              />
-              {errors.clienteNombre && <p className="text-red-500 text-sm mt-1">{errors.clienteNombre}</p>}
-            </div>
-            <div>
-              <label className="block text-gray-800 font-medium mb-1">CIF/NIF:</label>
-              <input
-                type="text"
-                id="clienteCIF"
-                value={formData.clienteCIF}
-                onChange={handleChange}
-                className={`w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.clienteCIF ? "border-red-500" : "border-gray-300"
-                }`}
-              />
-              {errors.clienteCIF && <p className="text-red-500 text-sm mt-1">{errors.clienteCIF}</p>}
-            </div>
+        {/* Client info */}
+        <Section title="Datos del Cliente">
+          <div className="space-y-4">
+            <Field label="Nombre o razón social" required error={errors.clienteNombre}>
+              <input type="text" id="clienteNombre" value={formData.clienteNombre}
+                onChange={handleChange} className={inputCls(errors.clienteNombre)} />
+            </Field>
+            <Field label="CIF / NIF" required error={errors.clienteCIF}>
+              <input type="text" id="clienteCIF" value={formData.clienteCIF}
+                onChange={handleChange} className={inputCls(errors.clienteCIF)}
+                placeholder="B12345678" />
+            </Field>
           </div>
+        </Section>
+
+        {/* Address */}
+        <Section title="Dirección del Cliente">
+          <div className="space-y-4">
+            <Field label="Dirección" required error={errors.clienteDireccion}>
+              <input type="text" id="clienteDireccion" value={formData.clienteDireccion}
+                onChange={handleChange} className={inputCls(errors.clienteDireccion)} />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="CP" required error={errors.clienteCP}>
+                <input type="text" id="clienteCP" value={formData.clienteCP}
+                  onChange={handleChange} className={inputCls(errors.clienteCP)} maxLength={5} />
+              </Field>
+              <Field label="Localidad" required error={errors.clienteLocalidad}>
+                <input type="text" id="clienteLocalidad" value={formData.clienteLocalidad}
+                  onChange={handleChange} className={inputCls(errors.clienteLocalidad)} />
+              </Field>
+            </div>
+            <Field label="Provincia" required error={errors.clienteProvincia}>
+              <input type="text" id="clienteProvincia" value={formData.clienteProvincia}
+                onChange={handleChange} className={inputCls(errors.clienteProvincia)} />
+            </Field>
+          </div>
+        </Section>
+
+        {/* Comments */}
+        <Section title="Comentario del servicio">
+          <Field label="" error={errors.comentarios}>
+            <textarea id="comentarios" value={formData.comentarios} onChange={handleChange}
+              placeholder="Detalle o descripción general del trabajo..."
+              rows={8}
+              className={`${inputCls(errors.comentarios)} resize-none`} />
+          </Field>
+        </Section>
+      </div>
+
+      {/* Items */}
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-800">Servicios / Artículos</h3>
+            {errors.items && <p className="text-xs text-red-600 mt-0.5">{errors.items}</p>}
+          </div>
+          <button type="button" onClick={openAddItemModal}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
+            + Añadir
+          </button>
         </div>
 
-        {/* Sección 2: Ubicación y Configuración Financiera */}
-        <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 shadow-sm mb-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h2 className="text-xl font-semibold mb-4 text-gray-800">Dirección / Ubicación</h2>
-            <div className="mb-4">
-              <label className="block text-gray-800 font-medium mb-1">Dirección:</label>
-              <input
-                type="text"
-                id="clienteDireccion"
-                value={formData.clienteDireccion}
-                onChange={handleChange}
-                className={`w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.clienteDireccion ? "border-red-500" : "border-gray-300"
-                }`}
-              />
-              {errors.clienteDireccion && <p className="text-red-500 text-sm mt-1">{errors.clienteDireccion}</p>}
-            </div>
-            <div className="mb-4">
-              <label className="block text-gray-800 font-medium mb-1">Código Postal:</label>
-              <input
-                type="text"
-                id="clienteCP"
-                value={formData.clienteCP}
-                onChange={handleChange}
-                className={`w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.clienteCP ? "border-red-500" : "border-gray-300"
-                }`}
-              />
-              {errors.clienteCP && <p className="text-red-500 text-sm mt-1">{errors.clienteCP}</p>}
-            </div>
-            <div className="mb-4">
-              <label className="block text-gray-800 font-medium mb-1">Localidad:</label>
-              <input
-                type="text"
-                id="clienteLocalidad"
-                value={formData.clienteLocalidad}
-                onChange={handleChange}
-                className={`w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.clienteLocalidad ? "border-red-500" : "border-gray-300"
-                }`}
-              />
-              {errors.clienteLocalidad && <p className="text-red-500 text-sm mt-1">{errors.clienteLocalidad}</p>}
-            </div>
-            <div>
-              <label className="block text-gray-800 font-medium mb-1">Provincia:</label>
-              <input
-                type="text"
-                id="clienteProvincia"
-                value={formData.clienteProvincia}
-                onChange={handleChange}
-                className={`w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.clienteProvincia ? "border-red-500" : "border-gray-300"
-                }`}
-              />
-              {errors.clienteProvincia && <p className="text-red-500 text-sm mt-1">{errors.clienteProvincia}</p>}
-            </div>
+        {formData.items.length === 0 ? (
+          <div className="px-5 py-8 text-center">
+            <p className="text-sm text-slate-500">No hay servicios añadidos.</p>
+            <button type="button" onClick={openAddItemModal}
+              className="mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium">
+              Añadir primer servicio
+            </button>
           </div>
-
-          <div>
-            <h2 className="text-xl font-semibold mb-4 text-gray-800">Configuración Financiera</h2>
-            <div>
-              <label className="block text-gray-800 font-medium mb-1">IVA (%):</label>
-              <input
-                type="number"
-                id="iva"
-                value={formData.iva}
-                min="0"
-                max="100"
-                onChange={handleChange}
-                className={`w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.iva ? "border-red-500" : "border-gray-300"
-                }`}
-              />
-              {errors.iva && <p className="text-red-500 text-sm mt-1">{errors.iva}</p>}
+        ) : (
+          <>
+            {/* Mobile: item cards */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {formData.items.map((s, i) => {
+                const base = Number(s.quantity) * Number(s.price);
+                const ivaAmt = base * (Number(s.iva) / 100);
+                return (
+                  <div key={i} className="p-4">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-slate-900 leading-snug">{s.description}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          {s.quantity} {s.unit === "Unidades" ? "Unid." : s.unit} × {Number(s.price).toFixed(2)} € · IVA {Number(s.iva).toFixed(0)}%
+                        </p>
+                      </div>
+                      <p className="shrink-0 font-bold text-slate-900 text-sm tabular-nums">{(base + ivaAmt).toFixed(2)} €</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => openEditItemModal(i)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-100 text-blue-700 active:bg-blue-200">
+                        Editar
+                      </button>
+                      <button type="button" onClick={() => {
+                        const copy = [...formData.items];
+                        copy.splice(i, 1);
+                        setFormData({ ...formData, items: copy });
+                      }}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-100 text-red-700 active:bg-red-200">
+                        Eliminar
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+              <div className="px-4 py-3 bg-slate-50 flex justify-between text-sm font-bold text-slate-800 border-t-2 border-slate-200">
+                <span>Total</span>
+                <span className="tabular-nums">{totalFinal.toFixed(2)} €</span>
+              </div>
             </div>
-          </div>
-        </div>
 
-        {/* Sección 3: Comentario y Servicios / Artículos */}
-        <div className="mb-6">
-          {errors.items && (
-            <p className="text-red-500 text-sm mb-2">{errors.items}</p>
-          )}
-
-          <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 shadow-sm mb-6">
-            <h2 className="text-xl font-semibold mb-4 text-gray-800">Comentario del Servicio</h2>
-            <textarea
-              id="comentarios"
-              value={formData.comentarios}
-              onChange={handleChange}
-              placeholder="Describe aquí el detalle o comentario del servicio, hasta 500 palabras..."
-              rows="10"
-              className={`w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.comentarios ? "border-red-500" : "border-gray-300 bg-blue-50"
-              }`}
-            />
-            {errors.comentarios && (
-              <p className="text-red-500 text-sm mt-1">{errors.comentarios}</p>
-            )}
-          </div>
-
-          {formData.items.length > 0 && (
-            <div className="overflow-x-auto bg-white rounded-lg shadow mb-6">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-blue-600">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-white uppercase">#</th>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-white uppercase">Descripción</th>
-                    <th className="px-4 py-2 text-center text-xs font-semibold text-white uppercase">Cant.</th>
-                    <th className="px-4 py-2 text-center text-xs font-semibold text-white uppercase">Und.</th>
-                    <th className="px-4 py-2 text-right text-xs font-semibold text-white uppercase">P.Unit €</th>
-                    <th className="px-4 py-2 text-center text-xs font-semibold text-white uppercase">IVA%</th>
-                    <th className="px-4 py-2 text-right text-xs font-semibold text-white uppercase">IVA €</th>
-                    <th className="px-4 py-2 text-right text-xs font-semibold text-white uppercase">Total €</th>
-                    <th className="px-4 py-2 text-center text-xs font-semibold text-white uppercase">Acciones</th>
+            {/* Desktop: table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50">
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide w-6">#</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Descripción</th>
+                    <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">Cant.</th>
+                    <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">Und.</th>
+                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">P.Unit</th>
+                    <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">IVA%</th>
+                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">IVA €</th>
+                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">Total €</th>
+                    <th className="px-4 py-2.5 w-20"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-green-200">
+                <tbody className="divide-y divide-slate-100">
                   {formData.items.map((s, i) => {
                     const base = Number(s.quantity) * Number(s.price);
                     const ivaAmt = base * (Number(s.iva) / 100);
-                    const total = base + ivaAmt;
                     return (
-                      <tr key={i} className="hover:bg-gray-50">
-                        <td className="px-4 py-2 text-sm text-gray-700">{i + 1}</td>
-                        <td className="px-4 py-2 text-sm text-gray-700">{s.description}</td>
-                        <td className="px-4 py-2 text-sm text-gray-700 text-center">{s.quantity}</td>
-                        <td className="px-4 py-2 text-sm text-gray-700 text-center">
-                          {s.unit === "Unidades" ? "Unid." : s.unit}
+                      <tr key={i} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-2.5 text-slate-400 text-xs">{i + 1}</td>
+                        <td className="px-4 py-2.5 text-slate-800 max-w-xs">
+                          <p className="truncate">{s.description}</p>
                         </td>
-                        <td className="px-4 py-2 text-sm text-gray-700 text-right">
-                          {Number(s.price).toFixed(2)}
-                        </td>
-                        <td className="px-4 py-2 text-sm text-gray-700 text-center">
-                          {Number(s.iva).toFixed(0)}%
-                        </td>
-                        <td className="px-4 py-2 text-sm text-gray-700 text-right">
-                          {ivaAmt.toFixed(2)}
-                        </td>
-                        <td className="px-4 py-2 text-sm text-gray-700 text-right font-semibold">
-                          {total.toFixed(2)}
-                        </td>
-                        <td className="px-4 py-2 text-sm text-gray-700 text-center">
-                          {/* Acciones apiladas (más visibles) */}
-                          <div className="flex flex-col items-stretch space-y-2">
-                            <button
-                              type="button"
-                              onClick={() => openEditItemModal(i)}
-                              className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-xs font-semibold shadow"
-                              title="Editar"
-                            >
-                              ✏️ Editar
+                        <td className="px-4 py-2.5 text-center tabular-nums text-slate-700">{s.quantity}</td>
+                        <td className="px-4 py-2.5 text-center text-slate-500 text-xs">{s.unit === "Unidades" ? "Unid." : s.unit}</td>
+                        <td className="px-4 py-2.5 text-right tabular-nums text-slate-700">{Number(s.price).toFixed(2)} €</td>
+                        <td className="px-4 py-2.5 text-center text-slate-500">{Number(s.iva).toFixed(0)}%</td>
+                        <td className="px-4 py-2.5 text-right tabular-nums text-slate-500">{ivaAmt.toFixed(2)} €</td>
+                        <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-slate-900">{(base + ivaAmt).toFixed(2)} €</td>
+                        <td className="px-4 py-2.5 text-right">
+                          <div className="flex gap-1 justify-end">
+                            <button type="button" onClick={() => openEditItemModal(i)}
+                              className="p-1.5 rounded-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                              </svg>
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const copy = [...formData.items];
-                                copy.splice(i, 1);
-                                setFormData({ ...formData, items: copy });
-                              }}
-                              className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-xs font-semibold shadow"
-                              title="Borrar"
-                            >
-                              🗑️ Borrar
+                            <button type="button" onClick={() => {
+                              const copy = [...formData.items];
+                              copy.splice(i, 1);
+                              setFormData({ ...formData, items: copy });
+                            }}
+                              className="p-1.5 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                <polyline points="3 6 5 6 21 6"/>
+                                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                                <path d="M10 11v6M14 11v6M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                              </svg>
                             </button>
                           </div>
                         </td>
@@ -1020,204 +902,82 @@ useEffect(() => {
                     );
                   })}
                 </tbody>
+                {formData.items.length > 0 && (
+                  <tfoot>
+                    <tr className="border-t-2 border-slate-200 bg-slate-50">
+                      <td colSpan={6} className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Totales</td>
+                      <td className="px-4 py-3 text-right tabular-nums font-bold text-slate-700">{totalIva.toFixed(2)} €</td>
+                      <td className="px-4 py-3 text-right tabular-nums font-bold text-slate-900">{totalFinal.toFixed(2)} €</td>
+                      <td />
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
-          )}
-        </div>
-
-        {/* Botones de Acción */}
-        <div className="flex flex-col sm:flex-row sm:justify-between items-center mt-6">
-          <div className="flex mb-4 sm:mb-0 space-x-4">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="px-6 py-3 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold rounded-lg transition-colors duration-150"
-            >
-              Volver Atrás
-            </button>
-            <button
-              type="button"
-              onClick={openAddItemModal}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors duration-150"
-            >
-              Añadir Servicio
-            </button>
-            <button
-            type="button"
-            onClick={() => {
-              if (!formData.items?.length) return alert("Añade al menos un servicio para guardar el borrador.");
-              // Autogenera id si no existe
-              const draft = formData.id ? formData : { ...formData, id: uuidv4(), createdAt: Date.now() };
-              // No marcar como facturada
-              draft.facturada = false;
-              upsertLS("savedInvoices", draft);
-              setShowToast(true);
-              setTimeout(() => setShowToast(false), 1500);
-            }}
-            className="px-6 py-3 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold rounded-lg transition-colors duration-150"
-          >
-            Guardar (borrador)
-          </button>
-          </div>
-          <button
-            type="submit"
-            onClick={handleSubmit}
-            className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors duration-150"
-          >
-            Generar {documentType === "presupuesto" ? "Presupuesto" : "Factura"}
-          </button>
-        </div>
+          </>
+        )}
       </div>
 
-      {/* Modal para Agregar/Editar Servicio */}
-      {isItemModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm z-50">
-          <div className="bg-white rounded-2xl p-6 md:p-8 max-w-2xl w-full shadow-2xl">
-            <div className="flex justify-between items-center border-b pb-3 mb-4">
-              <h3 className="text-xl md:text-2xl font-bold text-gray-800">
-                {editingItemIndex !== null ? "Editar Servicio" : "Agregar Servicio"}
-              </h3>
-              <button
-                onClick={() => setIsItemModalOpen(false)}
-                className="text-gray-600 hover:text-gray-800"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-6 w-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+      {/* Total summary */}
+      {formData.items.length > 0 && (
+        <div className="flex justify-end">
+          <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 w-full sm:w-auto sm:min-w-[240px] space-y-2">
+            <div className="flex justify-between text-sm text-slate-600">
+              <span>Base imponible</span>
+              <span className="tabular-nums font-medium">{totalBase.toFixed(2)} €</span>
             </div>
-
-            <div className="space-y-6">
-              <div>
-                <label className="block text-gray-700 font-semibold mb-1">Descripción:</label>
-                <textarea
-                  id="description"
-                  value={itemForm.description}
-                  onChange={handleItemFormChange}
-                  placeholder="Escribe la descripción completa (hasta 500 palabras)..."
-                  rows="12"
-                  className="w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-1">Cantidad:</label>
-                  <input
-                    type="number"
-                    id="quantity"
-                    value={itemForm.quantity}
-                    onChange={handleItemFormChange}
-                    className="w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-1">Precio Unitario (€):</label>
-                  <input
-                    type="number"
-                    id="price"
-                    value={itemForm.price}
-                    onChange={handleItemFormChange}
-                    className="w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-gray-700 font-semibold mb-1">IVA del Servicio (%):</label>
-                <input
-                  type="number"
-                  id="iva"
-                  value={itemForm.iva}
-                  onChange={handleItemFormChange}
-                  className="w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-gray-700 font-semibold mb-1">Unidad de Medida:</label>
-                <div className="flex space-x-4">
-                  <label
-                    className={`cursor-pointer px-4 py-2 border rounded-md transition-colors duration-150 ${
-                      itemForm.unit === "m²"
-                        ? "bg-blue-500 text-white border-blue-500"
-                        : "bg-white text-gray-700 border-gray-300"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="unit"
-                      value="m²"
-                      checked={itemForm.unit === "m²"}
-                      onChange={(e) => setItemForm({ ...itemForm, unit: e.target.value })}
-                      className="hidden"
-                    />
-                    m²
-                  </label>
-                  <label
-                    className={`cursor-pointer px-4 py-2 border rounded-md transition-colors duration-150 ${
-                      itemForm.unit === "Unidades"
-                        ? "bg-blue-500 text-white border-blue-500"
-                        : "bg-white text-gray-700 border-gray-300"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="unit"
-                      value="Unidades"
-                      checked={itemForm.unit === "Unidades"}
-                      onChange={(e) => setItemForm({ ...itemForm, unit: e.target.value })}
-                      className="hidden"
-                    />
-                    Unid.
-                  </label>
-                </div>
-              </div>
+            <div className="flex justify-between text-sm text-slate-600">
+              <span>IVA</span>
+              <span className="tabular-nums font-medium">{totalIva.toFixed(2)} €</span>
             </div>
-
-            <div className="flex justify-end mt-6 space-x-4">
-              <button
-                type="button"
-                onClick={() => setIsItemModalOpen(false)}
-                className="px-6 py-3 bg-gray-400 hover:bg-gray-500 text-white rounded-md transition-colors duration-150"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveItem}
-                className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors duration-150"
-              >
-                Guardar
-              </button>
+            <div className="flex justify-between text-base font-bold text-slate-900 border-t border-slate-200 pt-2">
+              <span>Total</span>
+              <span className="tabular-nums">{totalFinal.toFixed(2)} €</span>
             </div>
           </div>
         </div>
       )}
 
-      {/* Toast de Éxito */}
-      {showToast && (
-        <div className="fixed bottom-8 right-8 bg-green-500 text-white px-10 py-5 rounded-lg shadow-lg flex items-center animate-bounce">
-          <span className="mr-4">
-             {documentType === "presupuesto" ? "Presupuesto" : "Factura"} generada con éxito!
-          </span>
-          <button
-            onClick={() => setShowToast(false)}
-            className="text-white hover:text-gray-200 font-bold"
-          >
-            ✖
+      {/* Action bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-6">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button type="button" onClick={() => navigate(-1)}
+            className="w-full sm:w-auto px-4 py-2.5 text-sm font-medium bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded-lg transition-colors">
+            Volver
+          </button>
+          <button type="button" onClick={async () => {
+            if (!formData.items?.length) {
+              alert("Añade al menos un servicio para guardar el borrador.");
+              return;
+            }
+            const draft = { ...(formData.id ? formData : { ...formData, id: uuidv4(), createdAt: Date.now() }), facturada: false };
+            await upsertBorrador(draft);
+            flash("Borrador guardado");
+          }}
+            className="w-full sm:w-auto px-4 py-2.5 text-sm font-medium bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-800 rounded-lg transition-colors">
+            Guardar borrador
           </button>
         </div>
-      )}
+        <button type="submit" onClick={handleSubmit}
+          className="w-full sm:w-auto px-6 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg transition-colors shadow-sm">
+          Generar {documentType === "presupuesto" ? "Presupuesto" : "Factura"} + PDF
+        </button>
+      </div>
+
+      {/* Item modal */}
+      <ItemModal
+        isOpen={isItemModalOpen}
+        onClose={() => setIsItemModalOpen(false)}
+        onSave={handleSaveItem}
+        form={itemForm}
+        onChange={handleItemFormChange}
+        isEditing={editingItemIndex !== null}
+      />
+
+      {/* Toast */}
+      <Toast show={showToast} message={toastMsg} onClose={() => setShowToast(false)} />
     </div>
   );
 }
 
 export default DocumentGenerator;
-

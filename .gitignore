@@ -11,6 +11,11 @@ build/
 *.dmg
 *.app
 
+# Variables de entorno (nunca subir credenciales)
+.env
+.env.local
+.env.*.local
+
 # Archivos del sistema
 .DS_Store
 Thumbs.db

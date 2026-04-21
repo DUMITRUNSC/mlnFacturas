@@ -1,33 +1,64 @@
-// src/context/BusinessContext.jsx
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth, FIREBASE_READY } from "../services/firebase.js";
+import { businessSvc } from "../services/db.js";
 
-// 1️⃣ Creamos el Context
 export const BusinessContext = createContext();
 
-// 2️⃣ Provider que envuelve la app y persiste en localStorage
-export function BusinessProvider({ children }) {
-  // Cargamos valores iniciales de localStorage o por defecto
-  const stored = JSON.parse(localStorage.getItem('businessData')) || {};
-  const [business, setBusiness] = useState({
-    companyName:   stored.companyName   || '',
-    nif:           stored.nif           || '',
-    phone:         stored.phone         || '',
-    street:        stored.street        || '',
-    locality:      stored.locality      || '',
-    postalCode:    stored.postalCode    || '',
-    community:     stored.community     || '',
-    holder:        stored.holder        || '',
-    bank:          stored.bank          || '',
-    accountNumber: stored.accountNumber || '',
-  });
+const DEFAULTS = {
+  companyName: "", nif: "", phone: "",
+  street: "", locality: "", postalCode: "", community: "",
+  holder: "", bank: "", accountNumber: "",
+};
 
-  // Cada vez que cambie business, lo guardamos en localStorage
+export function BusinessProvider({ children }) {
+  const [business,    _setBusiness] = useState(DEFAULTS);
+  const [bizLoading,  setBizLoading] = useState(true);
+
   useEffect(() => {
-    localStorage.setItem('businessData', JSON.stringify(business));
-  }, [business]);
+    // ── Sin Firebase: cargar localStorage directamente ──────────────────
+    if (!FIREBASE_READY) {
+      const unsub = businessSvc.listen((data) => {
+        if (data && Object.keys(data).length > 0) _setBusiness((p) => ({ ...p, ...data }));
+        setBizLoading(false);
+      });
+      return unsub;
+    }
+
+    // ── Con Firebase: esperar sesión activa ─────────────────────────────
+    let unsubBiz = () => {};
+
+    const unsubAuth = onAuthStateChanged(auth, (user) => {
+      unsubBiz(); // cancelar listener anterior
+
+      if (!user) {
+        _setBusiness(DEFAULTS);
+        setBizLoading(false);
+        return;
+      }
+
+      unsubBiz = businessSvc.listen(
+        (data) => {
+          if (data && Object.keys(data).length > 0) _setBusiness((p) => ({ ...p, ...data }));
+          setBizLoading(false);
+        },
+        (err) => {
+          console.error("[BusinessContext]", err);
+          setBizLoading(false);
+        }
+      );
+    });
+
+    return () => { unsubAuth(); unsubBiz(); };
+  }, []);
+
+  const setBusiness = async (data) => {
+    _setBusiness(data);
+    await businessSvc.save(data);
+  };
 
   return (
-    <BusinessContext.Provider value={{ business, setBusiness }}>
+    <BusinessContext.Provider value={{ business, setBusiness, bizLoading }}>
       {children}
     </BusinessContext.Provider>
   );
