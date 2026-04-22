@@ -32,52 +32,35 @@ const schema = yup.object({
 }).required();
 
 /* ─── Field ──────────────────────────────────────────────────────────────── */
-function Field({ label, error, children, hint }) {
+function Field({ label, error, children, hint, half }) {
   return (
-    <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1.5">{label}</label>
+    <div className={half ? "" : ""}>
+      <label className="block text-sm font-semibold text-slate-700 mb-1.5">{label}</label>
       {children}
-      {hint && !error && <p className="mt-1 text-xs text-slate-500">{hint}</p>}
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      {hint && !error && <p className="mt-1.5 text-xs text-slate-500">{hint}</p>}
+      {error && <p className="mt-1.5 text-xs text-red-600 font-semibold">{error}</p>}
     </div>
   );
 }
 
-/* ─── Input classes ──────────────────────────────────────────────────────── */
+/* ─── Input ──────────────────────────────────────────────────────────────── */
 const inputCls = (err) =>
-  `w-full px-3 py-2.5 text-sm border rounded-lg bg-white placeholder-slate-400
-   focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors
-   ${err ? 'border-red-400 bg-red-50' : 'border-slate-300'}`;
+  `w-full px-4 py-3 text-sm border-2 rounded-xl bg-white placeholder-slate-400
+   focus:outline-none focus:border-blue-500 transition-colors
+   ${err ? 'border-red-400 bg-red-50' : 'border-slate-200 hover:border-slate-300'}`;
 
-/* ─── Step Indicator ─────────────────────────────────────────────────────── */
-function StepBar({ step, steps }) {
+/* ─── Section divider ────────────────────────────────────────────────────── */
+function SectionHeader({ icon, label, color = "blue" }) {
+  const cfg = {
+    blue:    { dot: "bg-blue-500",    text: "text-blue-700",    bg: "bg-blue-50"    },
+    violet:  { dot: "bg-violet-500",  text: "text-violet-700",  bg: "bg-violet-50"  },
+    emerald: { dot: "bg-emerald-500", text: "text-emerald-700", bg: "bg-emerald-50" },
+  }[color] || { dot: "bg-slate-400", text: "text-slate-600", bg: "bg-slate-50" };
+
   return (
-    <div className="flex items-center gap-0 mb-8">
-      {steps.map((label, i) => (
-        <React.Fragment key={i}>
-          <div className="flex flex-col items-center gap-1">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold border-2 transition-colors ${
-              i < step
-                ? 'bg-blue-600 border-blue-600 text-white'
-                : i === step
-                ? 'bg-white border-blue-600 text-blue-600'
-                : 'bg-white border-slate-300 text-slate-400'
-            }`}>
-              {i < step ? (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              ) : i + 1}
-            </div>
-            <span className={`text-xs font-medium ${i === step ? 'text-blue-600' : 'text-slate-400'}`}>
-              {label}
-            </span>
-          </div>
-          {i < steps.length - 1 && (
-            <div className={`flex-1 h-0.5 mx-2 mb-4 transition-colors ${i < step ? 'bg-blue-600' : 'bg-slate-200'}`} />
-          )}
-        </React.Fragment>
-      ))}
+    <div className={`flex items-center gap-2.5 px-5 py-3 ${cfg.bg}`}>
+      <div className={`w-2 h-2 rounded-full ${cfg.dot} shrink-0`} />
+      <span className={`text-xs font-black uppercase tracking-widest ${cfg.text}`}>{label}</span>
     </div>
   );
 }
@@ -86,14 +69,11 @@ function StepBar({ step, steps }) {
 export default function BusinessData() {
   const navigate = useNavigate();
   const { business, setBusiness } = useContext(BusinessContext);
-  const [step, setStep] = React.useState(0);
 
   const {
     control,
     handleSubmit,
     formState: { errors, isSubmitting },
-    getValues,
-    trigger,
   } = useForm({
     defaultValues: {
       ...business,
@@ -105,18 +85,6 @@ export default function BusinessData() {
     mode: 'onBlur',
   });
 
-  const STEPS = ['Empresa', 'Dirección', 'Banco'];
-  const STEP_FIELDS = [
-    ['companyName', 'nif', 'phone'],
-    ['postalCode', 'street', 'locality', 'community'],
-    ['holder', 'bank', 'accountNumber'],
-  ];
-
-  const handleNext = async () => {
-    const ok = await trigger(STEP_FIELDS[step]);
-    if (ok) setStep(s => s + 1);
-  };
-
   const onSubmit = data => {
     setBusiness(data);
     toast.success('Datos guardados correctamente', { position: 'top-right' });
@@ -124,28 +92,30 @@ export default function BusinessData() {
   };
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
+    <div className="p-4 md:p-6 max-w-2xl mx-auto pb-8">
       <ToastContainer />
 
-      <StepBar step={step} steps={STEPS} />
+      {/* Header */}
+      <div className="mb-5">
+        <h1 className="text-2xl font-black text-slate-900">Datos de la Empresa</h1>
+        <p className="text-slate-500 text-sm mt-1">
+          Aparecen en todas tus facturas y presupuestos
+        </p>
+      </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-        <div className="px-6 py-4 border-b border-slate-100">
-          <h2 className="font-semibold text-slate-800">{STEPS[step]}</h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Paso {step + 1} de {STEPS.length}
-          </p>
-        </div>
+      <form onSubmit={handleSubmit(onSubmit)}>
+        {/* Single card with sections */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-4">
 
-        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-5">
-          {/* Step 0 — Empresa */}
-          {step === 0 && (
-            <>
-              <Controller name="companyName" control={control} render={({ field }) => (
-                <Field label="Nombre de la Empresa" error={errors.companyName?.message}>
-                  <input {...field} className={inputCls(errors.companyName)} placeholder="MLN Construcciones en Altura SL" />
-                </Field>
-              )} />
+          {/* ── EMPRESA ── */}
+          <SectionHeader label="Empresa" color="blue" />
+          <div className="p-5 space-y-4">
+            <Controller name="companyName" control={control} render={({ field }) => (
+              <Field label="Nombre de la empresa" error={errors.companyName?.message}>
+                <input {...field} className={inputCls(errors.companyName)} placeholder="MLN Construcciones SL" />
+              </Field>
+            )} />
+            <div className="grid grid-cols-2 gap-4">
               <Controller name="nif" control={control} render={({ field }) => (
                 <Field label="NIF / NIE / CIF" error={errors.nif?.message}>
                   <input {...field} className={inputCls(errors.nif)} placeholder="B12345678" />
@@ -164,40 +134,44 @@ export default function BusinessData() {
                   />
                 </Field>
               )} />
-            </>
-          )}
+            </div>
+          </div>
 
-          {/* Step 1 — Dirección */}
-          {step === 1 && (
-            <>
-              <div className="grid grid-cols-2 gap-4">
-                <Controller name="postalCode" control={control} render={({ field }) => (
-                  <Field label="Código Postal" error={errors.postalCode?.message}>
-                    <input {...field} className={inputCls(errors.postalCode)} placeholder="28001" />
-                  </Field>
-                )} />
-                <Controller name="locality" control={control} render={({ field }) => (
-                  <Field label="Localidad" error={errors.locality?.message}>
-                    <input {...field} className={inputCls(errors.locality)} placeholder="Madrid" />
-                  </Field>
-                )} />
-              </div>
-              <Controller name="street" control={control} render={({ field }) => (
-                <Field label="Calle y número" error={errors.street?.message}>
-                  <input {...field} className={inputCls(errors.street)} placeholder="Calle Mayor, 10" />
+          <div className="border-t border-slate-100" />
+
+          {/* ── DIRECCIÓN ── */}
+          <SectionHeader label="Dirección" color="violet" />
+          <div className="p-5 space-y-4">
+            <Controller name="street" control={control} render={({ field }) => (
+              <Field label="Calle y número" error={errors.street?.message}>
+                <input {...field} className={inputCls(errors.street)} placeholder="Calle Mayor, 10" />
+              </Field>
+            )} />
+            <div className="grid grid-cols-3 gap-3">
+              <Controller name="postalCode" control={control} render={({ field }) => (
+                <Field label="Cód. Postal" error={errors.postalCode?.message}>
+                  <input {...field} className={inputCls(errors.postalCode)} placeholder="28001" />
+                </Field>
+              )} />
+              <Controller name="locality" control={control} render={({ field }) => (
+                <Field label="Localidad" error={errors.locality?.message}>
+                  <input {...field} className={inputCls(errors.locality)} placeholder="Madrid" />
                 </Field>
               )} />
               <Controller name="community" control={control} render={({ field }) => (
-                <Field label="Comunidad Autónoma" error={errors.community?.message}>
-                  <input {...field} className={inputCls(errors.community)} placeholder="Comunidad de Madrid" />
+                <Field label="Comunidad" error={errors.community?.message}>
+                  <input {...field} className={inputCls(errors.community)} placeholder="Madrid" />
                 </Field>
               )} />
-            </>
-          )}
+            </div>
+          </div>
 
-          {/* Step 2 — Banco */}
-          {step === 2 && (
-            <>
+          <div className="border-t border-slate-100" />
+
+          {/* ── BANCO ── */}
+          <SectionHeader label="Banco" color="emerald" />
+          <div className="p-5 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
               <Controller name="holder" control={control} render={({ field }) => (
                 <Field label="Titular de la cuenta" error={errors.holder?.message}>
                   <input {...field} className={inputCls(errors.holder)} placeholder="Juan Pérez García" />
@@ -208,56 +182,49 @@ export default function BusinessData() {
                   <input {...field} className={inputCls(errors.bank)} placeholder="Banco Sabadell" />
                 </Field>
               )} />
-              <Controller name="accountNumber" control={control} render={({ field }) => (
-                <Field label="IBAN" error={errors.accountNumber?.message} hint="Formato: ES36 0081 5735 4600 0196 0306">
-                  <input
-                    {...field}
-                    onChange={e => field.onChange(formatIban(e.target.value))}
-                    value={formatIban(field.value)}
-                    className={inputCls(errors.accountNumber)}
-                    placeholder="ES36 0081 5735 4600 0196 0306"
-                  />
-                </Field>
-              )} />
-            </>
-          )}
-
-          {/* Navigation */}
-          <div className="flex justify-between pt-4 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={() => step > 0 ? setStep(s => s - 1) : navigate('/')}
-              className="px-4 py-2 text-sm font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
-            >
-              {step > 0 ? 'Anterior' : 'Cancelar'}
-            </button>
-
-            {step < STEPS.length - 1 ? (
-              <button
-                type="button"
-                onClick={handleNext}
-                className="px-5 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-              >
-                Siguiente
-              </button>
-            ) : (
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="px-5 py-2 text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors disabled:opacity-60 flex items-center gap-2"
-              >
-                {isSubmitting && (
-                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                  </svg>
-                )}
-                Guardar
-              </button>
-            )}
+            </div>
+            <Controller name="accountNumber" control={control} render={({ field }) => (
+              <Field label="IBAN" error={errors.accountNumber?.message} hint="Ej: ES36 0081 5735 4600 0196 0306">
+                <input
+                  {...field}
+                  onChange={e => field.onChange(formatIban(e.target.value))}
+                  value={formatIban(field.value)}
+                  className={inputCls(errors.accountNumber)}
+                  placeholder="ES36 0081 5735 4600 0196 0306"
+                />
+              </Field>
+            )} />
           </div>
-        </form>
-      </div>
+        </div>
+
+        {/* ── Actions ── */}
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            className="px-5 py-3 text-sm font-semibold bg-white border-2 border-slate-200 hover:border-slate-300 text-slate-700 rounded-xl transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="flex-1 py-3 text-sm font-black bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30"
+          >
+            {isSubmitting ? (
+              <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            )}
+            Guardar datos de la empresa
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

@@ -48,42 +48,49 @@ function Skeleton() {
   );
 }
 
+function docTotal(doc) {
+  const base = (doc.items || []).reduce((s, x) => s + Number(x.quantity || 0) * Number(x.price || 0), 0);
+  const iva  = (doc.items || []).reduce((s, x) =>
+    s + Number(x.ivaAmount ?? (Number(x.quantity || 0) * Number(x.price || 0) * (Number(x.iva || 0) / 100))), 0);
+  return base + iva;
+}
+
 /* ─── Mobile card ────────────────────────────────────────────────────────── */
 function DocCard({ doc, onEdit, onPdf, onFacturar, onDelete }) {
+  const total = docTotal(doc);
   return (
     <div className="p-4 border-b border-slate-100 last:border-0">
       <div className="flex items-start justify-between gap-2 mb-3">
-        <div className="min-w-0">
-          <p className="font-semibold text-slate-900 text-sm truncate">
+        <div className="min-w-0 flex-1">
+          <p className="font-bold text-slate-900 text-base truncate">
             {[doc?.clienteNombre, doc?.clienteApellidos].filter(Boolean).join(" ") || "Sin nombre"}
           </p>
           <p className="text-xs text-slate-500 mt-0.5">{doc?.numero || "—"} · {safeDate(doc?.fecha)}</p>
         </div>
-        {doc?.facturada ? (
-          <span className="shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-            Facturado
-          </span>
-        ) : (
-          <span className="shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
-            Borrador
-          </span>
-        )}
+        <div className="shrink-0 text-right">
+          <p className="font-bold text-slate-900 tabular-nums text-sm">{total > 0 ? `${total.toFixed(2)} €` : "—"}</p>
+          {doc?.facturada ? (
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Facturado</span>
+          ) : (
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Borrador</span>
+          )}
+        </div>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <button onClick={onEdit}
-          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-100 text-blue-700 active:bg-blue-200">
+          className="py-2.5 rounded-xl text-sm font-semibold bg-blue-50 text-blue-700 active:bg-blue-100 transition-colors">
           Editar
         </button>
         <button onClick={onPdf}
-          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 active:bg-slate-200">
-          PDF
+          className="py-2.5 rounded-xl text-sm font-semibold bg-slate-100 text-slate-700 active:bg-slate-200 transition-colors">
+          Generar PDF
         </button>
         <button onClick={onFacturar}
-          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-100 text-emerald-700 active:bg-emerald-200">
-          Facturar
+          className="py-2.5 rounded-xl text-sm font-semibold bg-emerald-50 text-emerald-700 active:bg-emerald-100 transition-colors">
+          Emitir Factura
         </button>
         <button onClick={onDelete}
-          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-100 text-red-700 active:bg-red-200 ml-auto">
+          className="py-2.5 rounded-xl text-sm font-semibold bg-red-50 text-red-600 active:bg-red-100 transition-colors">
           Eliminar
         </button>
       </div>

@@ -12,27 +12,48 @@ import { useData } from "../context/DataContext.jsx";
 function Field({ label, error, children, hint, required }) {
   return (
     <div>
-      <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
+      <label className="block text-sm font-semibold text-slate-700 mb-1.5">
         {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
       {children}
-      {hint && !error && <p className="mt-1 text-xs text-slate-400">{hint}</p>}
-      {error && <p className="mt-1 text-xs text-red-600 font-medium">{error}</p>}
+      {hint && !error && <p className="mt-1.5 text-xs text-slate-500">{hint}</p>}
+      {error && <p className="mt-1.5 text-xs text-red-600 font-semibold">{error}</p>}
     </div>
   );
 }
 
 const inputCls = (err) =>
-  `w-full px-3 py-2.5 text-sm border rounded-lg bg-white placeholder-slate-400
-   focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors
+  `w-full px-4 py-3 text-sm border-2 rounded-xl bg-white placeholder-slate-400
+   focus:outline-none focus:border-blue-500 transition-colors
    ${err ? "border-red-400 bg-red-50" : "border-slate-200 hover:border-slate-300"}`;
 
 /* ─── Section card ───────────────────────────────────────────────────────── */
-function Section({ title, children }) {
+function Section({ title, children, color = "slate", icon }) {
+  const leftBorder = {
+    blue:    "border-l-blue-500",
+    emerald: "border-l-emerald-500",
+    violet:  "border-l-violet-500",
+    amber:   "border-l-amber-400",
+    slate:   "border-l-slate-300",
+  }[color] || "border-l-slate-300";
+
+  const iconBg = {
+    blue:    "bg-blue-100 text-blue-600",
+    emerald: "bg-emerald-100 text-emerald-600",
+    violet:  "bg-violet-100 text-violet-600",
+    amber:   "bg-amber-100 text-amber-600",
+    slate:   "bg-slate-100 text-slate-500",
+  }[color] || "bg-slate-100 text-slate-500";
+
   return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
-      <div className="px-5 py-3.5 border-b border-slate-100">
-        <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
+    <div className={`bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden border-l-4 ${leftBorder}`}>
+      <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-3">
+        {icon && (
+          <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${iconBg}`}>
+            {icon}
+          </div>
+        )}
+        <h3 className="text-sm font-bold text-slate-800">{title}</h3>
       </div>
       <div className="p-5">{children}</div>
     </div>
@@ -43,14 +64,18 @@ function Section({ title, children }) {
 function ItemModal({ isOpen, onClose, onSave, form, onChange, isEditing }) {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-2xl w-full sm:max-w-lg max-h-[90dvh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg max-h-[92dvh] overflow-y-auto">
+        {/* Handle bar (mobile) */}
+        <div className="sm:hidden flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 bg-slate-200 rounded-full" />
+        </div>
+
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h3 className="font-semibold text-slate-800">
-            {isEditing ? "Editar servicio" : "Agregar servicio"}
+          <h3 className="font-bold text-slate-900 text-base">
+            {isEditing ? "Editar servicio" : "Nuevo servicio"}
           </h3>
-          <button onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 transition-colors">
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
               <path d="M18 6L6 18M6 6l12 12"/>
             </svg>
@@ -58,13 +83,13 @@ function ItemModal({ isOpen, onClose, onSave, form, onChange, isEditing }) {
         </div>
 
         <div className="p-6 space-y-4">
-          <Field label="Descripción" required>
+          <Field label="Descripción del trabajo" required>
             <textarea
               id="description"
               value={form.description}
               onChange={onChange}
-              rows={4}
-              placeholder="Descripción detallada del servicio..."
+              rows={3}
+              placeholder="Ej: Pintura de fachada exterior, 50m²..."
               className={`${inputCls(false)} resize-none`}
             />
           </Field>
@@ -74,7 +99,7 @@ function ItemModal({ isOpen, onClose, onSave, form, onChange, isEditing }) {
               <input type="number" id="quantity" value={form.quantity} onChange={onChange}
                 className={inputCls(false)} placeholder="1" min="0" step="any" />
             </Field>
-            <Field label="Precio unitario (€)" required>
+            <Field label="Precio por unidad (€)" required>
               <input type="number" id="price" value={form.price} onChange={onChange}
                 className={inputCls(false)} placeholder="0.00" min="0" step="any" />
             </Field>
@@ -86,13 +111,13 @@ function ItemModal({ isOpen, onClose, onSave, form, onChange, isEditing }) {
                 className={inputCls(false)} min="0" max="100" />
             </Field>
             <Field label="Unidad">
-              <div className="flex gap-2 mt-0.5">
+              <div className="flex gap-1.5 mt-0.5 flex-wrap">
                 {["m²", "Unidades", "ml", "h"].map((u) => (
                   <label key={u}
-                    className={`cursor-pointer px-3 py-2 text-sm border rounded-lg flex-1 text-center transition-colors ${
+                    className={`cursor-pointer px-3 py-2.5 text-xs font-semibold border-2 rounded-xl flex-1 text-center transition-all ${
                       form.unit === u
                         ? "bg-blue-600 text-white border-blue-600"
-                        : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
+                        : "bg-white text-slate-600 border-slate-200 hover:border-blue-300"
                     }`}>
                     <input type="radio" name="unit" value={u} checked={form.unit === u}
                       onChange={(e) => onChange({ target: { id: "unit", value: e.target.value } })}
@@ -104,20 +129,21 @@ function ItemModal({ isOpen, onClose, onSave, form, onChange, isEditing }) {
             </Field>
           </div>
 
-          {/* Preview */}
+          {/* Live preview */}
           {form.quantity && form.price && (
-            <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-xs text-slate-600 space-y-1">
-              <div className="flex justify-between">
+            <div className="bg-slate-50 border-2 border-slate-200 rounded-2xl px-5 py-4 space-y-2">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Resumen</p>
+              <div className="flex justify-between text-sm text-slate-600">
                 <span>Base</span>
-                <span className="font-medium">{(Number(form.quantity) * Number(form.price)).toFixed(2)} €</span>
+                <span className="font-semibold tabular-nums">{(Number(form.quantity) * Number(form.price)).toFixed(2)} €</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between text-sm text-slate-600">
                 <span>IVA ({form.iva}%)</span>
-                <span className="font-medium">{(Number(form.quantity) * Number(form.price) * (Number(form.iva) / 100)).toFixed(2)} €</span>
+                <span className="font-semibold tabular-nums">{(Number(form.quantity) * Number(form.price) * (Number(form.iva) / 100)).toFixed(2)} €</span>
               </div>
-              <div className="flex justify-between border-t border-slate-200 pt-1 font-semibold text-slate-800">
+              <div className="flex justify-between border-t border-slate-300 pt-2 font-bold text-slate-900 text-base">
                 <span>Total</span>
-                <span>{(Number(form.quantity) * Number(form.price) * (1 + Number(form.iva) / 100)).toFixed(2)} €</span>
+                <span className="tabular-nums">{(Number(form.quantity) * Number(form.price) * (1 + Number(form.iva) / 100)).toFixed(2)} €</span>
               </div>
             </div>
           )}
@@ -125,12 +151,12 @@ function ItemModal({ isOpen, onClose, onSave, form, onChange, isEditing }) {
 
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-100">
           <button onClick={onClose}
-            className="px-4 py-2 text-sm font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors">
+            className="px-5 py-3 text-sm font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-colors">
             Cancelar
           </button>
           <button onClick={onSave}
-            className="px-5 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
-            {isEditing ? "Guardar cambios" : "Agregar"}
+            className="px-6 py-3 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors shadow-md shadow-blue-600/30">
+            {isEditing ? "Guardar cambios" : "Añadir servicio"}
           </button>
         </div>
       </div>
@@ -142,12 +168,12 @@ function ItemModal({ isOpen, onClose, onSave, form, onChange, isEditing }) {
 function Toast({ show, message, onClose }) {
   if (!show) return null;
   return (
-    <div className="fixed bottom-20 md:bottom-6 right-4 md:right-6 bg-emerald-600 text-white px-5 py-3.5 rounded-xl shadow-lg flex items-center gap-3 text-sm font-medium z-50 animate-bounce">
+    <div className="fixed bottom-20 md:bottom-6 right-4 md:right-6 bg-emerald-600 text-white px-5 py-3.5 rounded-2xl shadow-xl flex items-center gap-3 text-sm font-semibold z-50">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
         <polyline points="20 6 9 17 4 12"/>
       </svg>
       {message}
-      <button onClick={onClose} className="ml-2 opacity-70 hover:opacity-100">
+      <button onClick={onClose} className="ml-1 opacity-60 hover:opacity-100">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
           <path d="M18 6L6 18M6 6l12 12"/>
         </svg>
@@ -188,14 +214,12 @@ function DocumentGenerator({ documentType: initialType = "presupuesto" }) {
   /* ─── Load on edit ───────────────────────────────────────────────────── */
   useEffect(() => {
     if (!editingId) { setLoaded(true); return; }
-    // Try in-memory first (fast), then async fetch if not found yet
     const inMem = findDocById(editingId);
     if (inMem) {
       setFormData(inMem);
       if (inMem.documentType) setDocumentType(inMem.documentType);
       setLoaded(true);
     } else {
-      // Might not be in context yet — fetch directly
       Promise.all([
         import("../services/db.js").then(m => m.facturasSvc.getById(editingId)),
         import("../services/db.js").then(m => m.presupuestosSvc.getById(editingId)),
@@ -216,7 +240,6 @@ function DocumentGenerator({ documentType: initialType = "presupuesto" }) {
     if (issueNow && formData.id) {
       const issued = { ...formData, documentType: "factura", facturada: true };
       upsertFactura(issued);
-      // mark the draft as facturada too (keep it visible)
       upsertBorrador({ ...formData, facturada: true });
       setFormData(issued);
     }
@@ -309,8 +332,7 @@ function DocumentGenerator({ documentType: initialType = "presupuesto" }) {
     return Object.keys(e).length === 0;
   };
 
-  /* ─── DB helpers (context wrappers) ─────────────────────────────────── */
-  // kept for the inline "Emitir Factura" button logic below
+  /* ─── DB helpers ─────────────────────────────────────────────────────── */
   function _upsertLS(key, doc) {
     const arr = JSON.parse(localStorage.getItem(key) || "[]");
     const idx = arr.findIndex((d) => d.id === doc.id);
@@ -389,7 +411,6 @@ function DocumentGenerator({ documentType: initialType = "presupuesto" }) {
         fechaStrES = `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()}`;
       }
 
-      // Load logo
       let pngDataUrl = null;
       try {
         const resp = await fetch("/logo.svg");
@@ -407,7 +428,6 @@ function DocumentGenerator({ documentType: initialType = "presupuesto" }) {
         }
       } catch {}
 
-      // Load signature
       let signaturePng = null;
       async function loadSvgAsPng(svgPath, size = 600) {
         const resp = await fetch(svgPath);
@@ -440,7 +460,6 @@ function DocumentGenerator({ documentType: initialType = "presupuesto" }) {
         }
       }
 
-      // Create PDF
       const doc = new jsPDF({ unit: "mm", format: "a4" });
       const title = documentType === "factura" ? "Factura" : "Presupuesto";
       const MARGINS = { top: 20, right: 20, bottom: 20, left: 20 };
@@ -625,7 +644,6 @@ function DocumentGenerator({ documentType: initialType = "presupuesto" }) {
       drawItemsTable(doc);
       drawTotals(doc, signaturePng);
 
-      // Watermark
       if (pngDataUrl) {
         const { pageW, pageH } = box(doc);
         const pages = doc.internal.getNumberOfPages();
@@ -668,50 +686,84 @@ function DocumentGenerator({ documentType: initialType = "presupuesto" }) {
   const totalIva   = formData.items.reduce((s, x) => s + Number(x.ivaAmount ?? Number(x.quantity) * Number(x.price) * (Number(x.iva) / 100)), 0);
   const totalFinal = totalBase + totalIva;
 
+  /* ─── Theme ──────────────────────────────────────────────────────────── */
+  const isFactura = documentType === "factura";
+  const primaryBg = isFactura ? "bg-emerald-600" : "bg-blue-600";
+  const primaryHover = isFactura ? "hover:bg-emerald-700" : "hover:bg-blue-700";
+  const primaryShadow = isFactura ? "shadow-emerald-600/30" : "shadow-blue-600/30";
+
+  /* ─── Icons ──────────────────────────────────────────────────────────── */
+  const DocIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/>
+      <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+    </svg>
+  );
+  const PersonIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+      <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+      <circle cx="12" cy="7" r="4"/>
+    </svg>
+  );
+  const PinIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
+      <circle cx="12" cy="10" r="3"/>
+    </svg>
+  );
+  const ChatIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+      <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+    </svg>
+  );
+  const ToolsIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+      <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>
+    </svg>
+  );
+
   /* ─── Render ─────────────────────────────────────────────────────────── */
   return (
-    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-5">
-      {/* Type switcher + Facturar */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1 self-start">
-          {["presupuesto", "factura"].map((type) => (
-            <button key={type} type="button"
-              onClick={() => setDocumentType(type)}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                documentType === type
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}>
-              {type === "presupuesto" ? "Presupuesto" : "Factura"}
-            </button>
-          ))}
-        </div>
+    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-4 pb-8">
 
-        <button type="button"
-          onClick={async () => {
-            if (!validate()) return;
-            const docWithId = formData.id ? formData : { ...formData, id: uuidv4(), createdAt: Date.now() };
-            const issued = { ...docWithId, documentType, facturada: true };
-            await upsertFactura(issued);
-            await removeBorrador(issued.id);
-            flash("Factura emitida. Generando PDF...");
-            await generatePDF();
-          }}
-          className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm">
-          Emitir Factura
-        </button>
+      {/* ── Document type header ── */}
+      <div className={`rounded-2xl px-5 py-4 flex items-center gap-4 ${isFactura ? "bg-emerald-600 shadow-emerald-600/30" : "bg-blue-600 shadow-blue-600/30"} text-white shadow-lg`}>
+        <div className="w-11 h-11 bg-white/20 rounded-2xl flex items-center justify-center shrink-0">
+          {isFactura ? (
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round">
+              <path d="M4 2h16v20l-3-2-2 2-3-2-3 2-2-2-3 2V2z"/>
+              <line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="13" y2="15"/>
+            </svg>
+          ) : (
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+            </svg>
+          )}
+        </div>
+        <div className="flex-1">
+          <p className="text-white/70 text-xs font-semibold uppercase tracking-wider">
+            {editingId ? "Editando" : "Nuevo"}
+          </p>
+          <p className="text-white font-bold text-xl leading-tight">
+            {isFactura ? "Factura" : "Presupuesto"}
+          </p>
+        </div>
       </div>
 
-      {/* Main grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Document info */}
-        <Section title="Datos del Documento">
+      {/* ── Main form grid ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        {/* Datos del Documento */}
+        <Section title="Datos del Documento" color={isFactura ? "emerald" : "blue"} icon={<DocIcon />}>
           <div className="space-y-4">
-            <Field label="Número" required error={errors.numero}
-              hint="Se formatea como AAAA_NNNN automáticamente">
+            <Field label="Número del documento" required error={errors.numero}
+              hint="Escribe un número (ej: 1) y se formateará automáticamente">
               <input type="text" id="numero" value={formData.numero} onChange={handleChange}
                 onBlur={handleInvoiceNumberBlur}
-                placeholder="Ej: 9 → 2025_0009"
+                placeholder="Ej: 1 → 2025_0001"
                 className={inputCls(errors.numero)} />
             </Field>
             <Field label="Fecha" required error={errors.fecha}>
@@ -719,26 +771,27 @@ function DocumentGenerator({ documentType: initialType = "presupuesto" }) {
                 selected={formData.fecha instanceof Date ? formData.fecha : formData.fecha ? new Date(formData.fecha) : null}
                 onChange={(date) => setFormData({ ...formData, fecha: date })}
                 dateFormat="yyyy-MM-dd"
-                placeholderText="Selecciona fecha"
+                placeholderText="Selecciona la fecha"
                 className={inputCls(errors.fecha)}
                 wrapperClassName="w-full"
               />
             </Field>
-            <Field label="IVA global (%)" error={errors.iva}>
+            <Field label="IVA global (%)" error={errors.iva} hint="Se aplica a todos los servicios por defecto">
               <input type="number" id="iva" value={formData.iva} min="0" max="100"
                 onChange={handleChange} className={inputCls(errors.iva)} />
             </Field>
           </div>
         </Section>
 
-        {/* Client info */}
-        <Section title="Datos del Cliente">
+        {/* Datos del Cliente */}
+        <Section title="Datos del Cliente" color="violet" icon={<PersonIcon />}>
           <div className="space-y-4">
             <Field label="Nombre o razón social" required error={errors.clienteNombre}>
               <input type="text" id="clienteNombre" value={formData.clienteNombre}
-                onChange={handleChange} className={inputCls(errors.clienteNombre)} />
+                onChange={handleChange} className={inputCls(errors.clienteNombre)}
+                placeholder="Empresa o nombre del cliente" />
             </Field>
-            <Field label="CIF / NIF" required error={errors.clienteCIF}>
+            <Field label="CIF / NIF del cliente" required error={errors.clienteCIF}>
               <input type="text" id="clienteCIF" value={formData.clienteCIF}
                 onChange={handleChange} className={inputCls(errors.clienteCIF)}
                 placeholder="B12345678" />
@@ -746,59 +799,82 @@ function DocumentGenerator({ documentType: initialType = "presupuesto" }) {
           </div>
         </Section>
 
-        {/* Address */}
-        <Section title="Dirección del Cliente">
+        {/* Dirección del Cliente */}
+        <Section title="Dirección del Cliente" color="violet" icon={<PinIcon />}>
           <div className="space-y-4">
-            <Field label="Dirección" required error={errors.clienteDireccion}>
+            <Field label="Dirección completa" required error={errors.clienteDireccion}>
               <input type="text" id="clienteDireccion" value={formData.clienteDireccion}
-                onChange={handleChange} className={inputCls(errors.clienteDireccion)} />
+                onChange={handleChange} className={inputCls(errors.clienteDireccion)}
+                placeholder="Calle, número, piso..." />
             </Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="CP" required error={errors.clienteCP}>
+              <Field label="Código Postal" required error={errors.clienteCP}>
                 <input type="text" id="clienteCP" value={formData.clienteCP}
-                  onChange={handleChange} className={inputCls(errors.clienteCP)} maxLength={5} />
+                  onChange={handleChange} className={inputCls(errors.clienteCP)} maxLength={5}
+                  placeholder="28001" />
               </Field>
               <Field label="Localidad" required error={errors.clienteLocalidad}>
                 <input type="text" id="clienteLocalidad" value={formData.clienteLocalidad}
-                  onChange={handleChange} className={inputCls(errors.clienteLocalidad)} />
+                  onChange={handleChange} className={inputCls(errors.clienteLocalidad)}
+                  placeholder="Madrid" />
               </Field>
             </div>
             <Field label="Provincia" required error={errors.clienteProvincia}>
               <input type="text" id="clienteProvincia" value={formData.clienteProvincia}
-                onChange={handleChange} className={inputCls(errors.clienteProvincia)} />
+                onChange={handleChange} className={inputCls(errors.clienteProvincia)}
+                placeholder="Madrid" />
             </Field>
           </div>
         </Section>
 
-        {/* Comments */}
-        <Section title="Comentario del servicio">
+        {/* Comentarios */}
+        <Section title="Comentarios del trabajo" color="amber" icon={<ChatIcon />}>
           <Field label="" error={errors.comentarios}>
             <textarea id="comentarios" value={formData.comentarios} onChange={handleChange}
-              placeholder="Detalle o descripción general del trabajo..."
+              placeholder="Describe el trabajo realizado, condiciones, notas importantes..."
               rows={8}
               className={`${inputCls(errors.comentarios)} resize-none`} />
           </Field>
         </Section>
       </div>
 
-      {/* Items */}
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-semibold text-slate-800">Servicios / Artículos</h3>
-            {errors.items && <p className="text-xs text-red-600 mt-0.5">{errors.items}</p>}
+      {/* ── Servicios ── */}
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden border-l-4 border-l-slate-400">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">
+              <ToolsIcon />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-800">Servicios y Artículos</h3>
+              {errors.items && <p className="text-xs text-red-600 font-semibold mt-0.5">{errors.items}</p>}
+            </div>
           </div>
           <button type="button" onClick={openAddItemModal}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
-            + Añadir
+            className={`px-4 py-2.5 ${primaryBg} ${primaryHover} text-white text-sm font-bold rounded-xl transition-colors shadow-md ${primaryShadow} flex items-center gap-2 shrink-0`}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+              <path d="M12 5v14 M5 12h14"/>
+            </svg>
+            Añadir
           </button>
         </div>
 
         {formData.items.length === 0 ? (
-          <div className="px-5 py-8 text-center">
-            <p className="text-sm text-slate-500">No hay servicios añadidos.</p>
+          <div className="px-5 py-12 flex flex-col items-center gap-4">
+            <div className={`w-16 h-16 rounded-2xl ${isFactura ? "bg-emerald-50" : "bg-blue-50"} flex items-center justify-center`}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={isFactura ? "#059669" : "#2563EB"} strokeWidth={1.5} strokeLinecap="round">
+                <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>
+              </svg>
+            </div>
+            <div className="text-center">
+              <p className="text-slate-800 font-bold text-base">Sin servicios todavía</p>
+              <p className="text-slate-500 text-sm mt-1">Añade los trabajos o materiales de este documento</p>
+            </div>
             <button type="button" onClick={openAddItemModal}
-              className="mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium">
+              className={`px-8 py-3.5 ${primaryBg} ${primaryHover} text-white text-sm font-bold rounded-2xl transition-colors shadow-lg ${primaryShadow} flex items-center gap-2`}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                <path d="M12 5v14 M5 12h14"/>
+              </svg>
               Añadir primer servicio
             </button>
           </div>
@@ -811,18 +887,20 @@ function DocumentGenerator({ documentType: initialType = "presupuesto" }) {
                 const ivaAmt = base * (Number(s.iva) / 100);
                 return (
                   <div key={i} className="p-4">
-                    <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex items-start justify-between gap-2 mb-3">
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-slate-900 leading-snug">{s.description}</p>
-                        <p className="text-xs text-slate-500 mt-0.5">
+                        <p className="text-sm font-semibold text-slate-900 leading-snug">{s.description}</p>
+                        <p className="text-xs text-slate-500 mt-1">
                           {s.quantity} {s.unit === "Unidades" ? "Unid." : s.unit} × {Number(s.price).toFixed(2)} € · IVA {Number(s.iva).toFixed(0)}%
                         </p>
                       </div>
-                      <p className="shrink-0 font-bold text-slate-900 text-sm tabular-nums">{(base + ivaAmt).toFixed(2)} €</p>
+                      <p className={`shrink-0 font-bold text-base tabular-nums ${isFactura ? "text-emerald-700" : "text-blue-700"}`}>
+                        {(base + ivaAmt).toFixed(2)} €
+                      </p>
                     </div>
                     <div className="flex gap-2">
                       <button type="button" onClick={() => openEditItemModal(i)}
-                        className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-100 text-blue-700 active:bg-blue-200">
+                        className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-slate-100 text-slate-700 active:bg-slate-200 transition-colors">
                         Editar
                       </button>
                       <button type="button" onClick={() => {
@@ -830,16 +908,16 @@ function DocumentGenerator({ documentType: initialType = "presupuesto" }) {
                         copy.splice(i, 1);
                         setFormData({ ...formData, items: copy });
                       }}
-                        className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-100 text-red-700 active:bg-red-200">
+                        className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-red-50 text-red-600 active:bg-red-100 transition-colors">
                         Eliminar
                       </button>
                     </div>
                   </div>
                 );
               })}
-              <div className="px-4 py-3 bg-slate-50 flex justify-between text-sm font-bold text-slate-800 border-t-2 border-slate-200">
-                <span>Total</span>
-                <span className="tabular-nums">{totalFinal.toFixed(2)} €</span>
+              <div className={`px-4 py-4 flex justify-between font-bold border-t-2 border-slate-200 ${isFactura ? "bg-emerald-50 text-emerald-900" : "bg-blue-50 text-blue-900"}`}>
+                <span className="text-sm">Total del documento</span>
+                <span className="tabular-nums text-base">{totalFinal.toFixed(2)} €</span>
               </div>
             </div>
 
@@ -848,15 +926,15 @@ function DocumentGenerator({ documentType: initialType = "presupuesto" }) {
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
-                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide w-6">#</th>
-                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Descripción</th>
-                    <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">Cant.</th>
-                    <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">Und.</th>
-                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">P.Unit</th>
-                    <th className="px-4 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">IVA%</th>
-                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">IVA €</th>
-                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">Total €</th>
-                    <th className="px-4 py-2.5 w-20"></th>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wide w-8">#</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wide">Descripción</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wide">Cant.</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wide">Und.</th>
+                    <th className="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wide">P.Unit</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wide">IVA%</th>
+                    <th className="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wide">IVA €</th>
+                    <th className="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wide">Total €</th>
+                    <th className="px-4 py-3 w-20" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -865,21 +943,21 @@ function DocumentGenerator({ documentType: initialType = "presupuesto" }) {
                     const ivaAmt = base * (Number(s.iva) / 100);
                     return (
                       <tr key={i} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-4 py-2.5 text-slate-400 text-xs">{i + 1}</td>
-                        <td className="px-4 py-2.5 text-slate-800 max-w-xs">
-                          <p className="truncate">{s.description}</p>
+                        <td className="px-4 py-3 text-slate-400 text-xs font-semibold">{i + 1}</td>
+                        <td className="px-4 py-3 text-slate-800 max-w-xs">
+                          <p className="truncate font-medium">{s.description}</p>
                         </td>
-                        <td className="px-4 py-2.5 text-center tabular-nums text-slate-700">{s.quantity}</td>
-                        <td className="px-4 py-2.5 text-center text-slate-500 text-xs">{s.unit === "Unidades" ? "Unid." : s.unit}</td>
-                        <td className="px-4 py-2.5 text-right tabular-nums text-slate-700">{Number(s.price).toFixed(2)} €</td>
-                        <td className="px-4 py-2.5 text-center text-slate-500">{Number(s.iva).toFixed(0)}%</td>
-                        <td className="px-4 py-2.5 text-right tabular-nums text-slate-500">{ivaAmt.toFixed(2)} €</td>
-                        <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-slate-900">{(base + ivaAmt).toFixed(2)} €</td>
-                        <td className="px-4 py-2.5 text-right">
+                        <td className="px-4 py-3 text-center tabular-nums text-slate-700">{s.quantity}</td>
+                        <td className="px-4 py-3 text-center text-slate-500 text-xs">{s.unit === "Unidades" ? "Unid." : s.unit}</td>
+                        <td className="px-4 py-3 text-right tabular-nums text-slate-700">{Number(s.price).toFixed(2)} €</td>
+                        <td className="px-4 py-3 text-center text-slate-500">{Number(s.iva).toFixed(0)}%</td>
+                        <td className="px-4 py-3 text-right tabular-nums text-slate-500">{ivaAmt.toFixed(2)} €</td>
+                        <td className={`px-4 py-3 text-right tabular-nums font-bold ${isFactura ? "text-emerald-700" : "text-blue-700"}`}>{(base + ivaAmt).toFixed(2)} €</td>
+                        <td className="px-4 py-3">
                           <div className="flex gap-1 justify-end">
                             <button type="button" onClick={() => openEditItemModal(i)}
-                              className="p-1.5 rounded-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                              className="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                                 <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
                                 <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
                               </svg>
@@ -889,8 +967,8 @@ function DocumentGenerator({ documentType: initialType = "presupuesto" }) {
                               copy.splice(i, 1);
                               setFormData({ ...formData, items: copy });
                             }}
-                              className="p-1.5 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors">
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                              className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                                 <polyline points="3 6 5 6 21 6"/>
                                 <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
                                 <path d="M10 11v6M14 11v6M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
@@ -902,35 +980,34 @@ function DocumentGenerator({ documentType: initialType = "presupuesto" }) {
                     );
                   })}
                 </tbody>
-                {formData.items.length > 0 && (
-                  <tfoot>
-                    <tr className="border-t-2 border-slate-200 bg-slate-50">
-                      <td colSpan={6} className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Totales</td>
-                      <td className="px-4 py-3 text-right tabular-nums font-bold text-slate-700">{totalIva.toFixed(2)} €</td>
-                      <td className="px-4 py-3 text-right tabular-nums font-bold text-slate-900">{totalFinal.toFixed(2)} €</td>
-                      <td />
-                    </tr>
-                  </tfoot>
-                )}
+                <tfoot>
+                  <tr className={`border-t-2 border-slate-200 ${isFactura ? "bg-emerald-50" : "bg-blue-50"}`}>
+                    <td colSpan={6} className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">Totales</td>
+                    <td className="px-4 py-3 text-right tabular-nums font-bold text-slate-600">{totalIva.toFixed(2)} €</td>
+                    <td className={`px-4 py-3 text-right tabular-nums font-bold text-base ${isFactura ? "text-emerald-700" : "text-blue-700"}`}>{totalFinal.toFixed(2)} €</td>
+                    <td />
+                  </tr>
+                </tfoot>
               </table>
             </div>
           </>
         )}
       </div>
 
-      {/* Total summary */}
+      {/* ── Totals card ── */}
       {formData.items.length > 0 && (
         <div className="flex justify-end">
-          <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 w-full sm:w-auto sm:min-w-[240px] space-y-2">
-            <div className="flex justify-between text-sm text-slate-600">
+          <div className={`${primaryBg} rounded-2xl p-5 w-full sm:w-auto sm:min-w-[280px] text-white shadow-xl ${primaryShadow}`}>
+            <p className="text-xs font-bold uppercase tracking-wider text-white/70 mb-3">Resumen</p>
+            <div className="flex justify-between text-sm text-white/80 mb-2">
               <span>Base imponible</span>
-              <span className="tabular-nums font-medium">{totalBase.toFixed(2)} €</span>
+              <span className="tabular-nums font-semibold">{totalBase.toFixed(2)} €</span>
             </div>
-            <div className="flex justify-between text-sm text-slate-600">
+            <div className="flex justify-between text-sm text-white/80 mb-4">
               <span>IVA</span>
-              <span className="tabular-nums font-medium">{totalIva.toFixed(2)} €</span>
+              <span className="tabular-nums font-semibold">{totalIva.toFixed(2)} €</span>
             </div>
-            <div className="flex justify-between text-base font-bold text-slate-900 border-t border-slate-200 pt-2">
+            <div className="flex justify-between font-bold text-xl border-t border-white/20 pt-3">
               <span>Total</span>
               <span className="tabular-nums">{totalFinal.toFixed(2)} €</span>
             </div>
@@ -938,33 +1015,64 @@ function DocumentGenerator({ documentType: initialType = "presupuesto" }) {
         </div>
       )}
 
-      {/* Action bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-6">
-        <div className="flex flex-col sm:flex-row gap-2">
-          <button type="button" onClick={() => navigate(-1)}
-            className="w-full sm:w-auto px-4 py-2.5 text-sm font-medium bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded-lg transition-colors">
-            Volver
-          </button>
-          <button type="button" onClick={async () => {
-            if (!formData.items?.length) {
-              alert("Añade al menos un servicio para guardar el borrador.");
-              return;
-            }
-            const draft = { ...(formData.id ? formData : { ...formData, id: uuidv4(), createdAt: Date.now() }), facturada: false };
-            await upsertBorrador(draft);
-            flash("Borrador guardado");
-          }}
-            className="w-full sm:w-auto px-4 py-2.5 text-sm font-medium bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-800 rounded-lg transition-colors">
-            Guardar borrador
-          </button>
+      {/* ── Action bar ── */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          {/* Left: secondary actions */}
+          <div className="flex gap-2">
+            <button type="button" onClick={() => navigate(-1)}
+              className="px-4 py-3 text-sm font-semibold bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded-xl transition-colors">
+              Volver
+            </button>
+            <button type="button" onClick={async () => {
+              if (!formData.items?.length) {
+                alert("Añade al menos un servicio para guardar el borrador.");
+                return;
+              }
+              const draft = { ...(formData.id ? formData : { ...formData, id: uuidv4(), createdAt: Date.now() }), facturada: false };
+              await upsertBorrador(draft);
+              flash("Borrador guardado");
+            }}
+              className="px-4 py-3 text-sm font-semibold bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-800 rounded-xl transition-colors flex items-center gap-1.5">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+              </svg>
+              Borrador
+            </button>
+          </div>
+
+          {/* Right: primary actions */}
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-2">
+            <button type="button"
+              onClick={async () => {
+                if (!validate()) return;
+                const docWithId = formData.id ? formData : { ...formData, id: uuidv4(), createdAt: Date.now() };
+                const issued = { ...docWithId, documentType, facturada: true };
+                await upsertFactura(issued);
+                await removeBorrador(issued.id);
+                flash("Factura emitida. Generando PDF...");
+                await generatePDF();
+              }}
+              className="w-full sm:w-auto px-5 py-3 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-bold rounded-xl transition-colors shadow-md shadow-emerald-600/30 flex items-center justify-center gap-2">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              Emitir Factura
+            </button>
+            <button type="submit" onClick={handleSubmit}
+              className={`w-full sm:w-auto px-6 py-3 text-sm font-bold ${primaryBg} ${primaryHover} text-white rounded-xl transition-colors shadow-lg ${primaryShadow} flex items-center justify-center gap-2`}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+              Generar {isFactura ? "Factura" : "Presupuesto"} + PDF
+            </button>
+          </div>
         </div>
-        <button type="submit" onClick={handleSubmit}
-          className="w-full sm:w-auto px-6 py-2.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg transition-colors shadow-sm">
-          Generar {documentType === "presupuesto" ? "Presupuesto" : "Factura"} + PDF
-        </button>
       </div>
 
-      {/* Item modal */}
+      {/* ── Modals ── */}
       <ItemModal
         isOpen={isItemModalOpen}
         onClose={() => setIsItemModalOpen(false)}
@@ -973,8 +1081,6 @@ function DocumentGenerator({ documentType: initialType = "presupuesto" }) {
         onChange={handleItemFormChange}
         isEditing={editingItemIndex !== null}
       />
-
-      {/* Toast */}
       <Toast show={showToast} message={toastMsg} onClose={() => setShowToast(false)} />
     </div>
   );
