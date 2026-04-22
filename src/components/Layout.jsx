@@ -237,8 +237,10 @@ function MobileDrawer({ open, onClose }) {
 function BottomNav() {
   const location = useLocation();
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-slate-200
-      flex items-stretch safe-area-bottom">
+    <nav
+      className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-slate-200 flex items-stretch"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+    >
       {BOTTOM_NAV.map((item) => {
         const isActive = item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
         return (
@@ -340,8 +342,8 @@ export default function Layout() {
         <TopBar onMenuClick={() => setDrawerOpen(true)} />
         <FirebaseBanner />
 
-        {/* Main content — pb-16 on mobile for bottom nav */}
-        <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
+        {/* Main content — pb-nav-safe on mobile clears bottom nav + safe area */}
+        <main className="flex-1 overflow-y-auto pb-nav-safe md:pb-0">
           <Outlet />
         </main>
       </div>
