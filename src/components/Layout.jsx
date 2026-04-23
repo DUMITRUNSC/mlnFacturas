@@ -7,7 +7,7 @@ import { FIREBASE_READY } from "../services/firebase.js";
 /* ─── Icons ──────────────────────────────────────────────────────────────── */
 const Icon = ({ d, size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+    stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
     <path d={d} />
   </svg>
 );
@@ -19,6 +19,7 @@ const icons = {
   chart:    "M18 20V10 M12 20V4 M6 20v-6",
   menu:     "M3 6h18 M3 12h18 M3 18h18",
   x:        "M18 6L6 18 M6 6l12 12",
+  chevronL: "M15 18l-6-6 6-6",
   chevronR: "M9 18l6-6-6-6",
   logout:   "M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4 M16 17l5-5-5-5 M21 12H9",
   plus:     "M12 5v14 M5 12h14",
@@ -29,8 +30,8 @@ const NAV_GROUPS = [
   {
     label: "Principal",
     items: [
-      { path: "/",          label: "Dashboard",          icon: "home"     },
-      { path: "/empresa",   label: "Mi Empresa",         icon: "building" },
+      { path: "/",        label: "Inicio",     icon: "home"     },
+      { path: "/empresa", label: "Mi Empresa", icon: "building" },
     ],
   },
   {
@@ -43,21 +44,20 @@ const NAV_GROUPS = [
   {
     label: "Gestión",
     items: [
-      { path: "/gestion-empresarial",    label: "Resumen",              icon: "chart"   },
-      { path: "/presupuestos-guardadas", label: "Presupuestos",         icon: "file"    },
-      { path: "/facturas-guardadas",     label: "Borradores",           icon: "receipt" },
-      { path: "/balances",               label: "Balances",             icon: "chart"   },
+      { path: "/gestion-empresarial",    label: "Resumen",      icon: "chart"   },
+      { path: "/presupuestos-guardadas", label: "Presupuestos", icon: "file"    },
+      { path: "/facturas-guardadas",     label: "Facturas",     icon: "receipt" },
+      { path: "/balances",               label: "Balances",     icon: "chart"   },
     ],
   },
 ];
 
-// Bottom nav: 5 most-used items on mobile
 const BOTTOM_NAV = [
-  { path: "/",                       label: "Inicio",       icon: "home"     },
-  { path: "/presupuestos",           label: "Presupuesto",  icon: "file"     },
-  { path: "/facturas",               label: "Factura",      icon: "receipt"  },
-  { path: "/facturas-guardadas",     label: "Borradores",   icon: "chart"    },
-  { path: "/empresa",                label: "Empresa",      icon: "building" },
+  { path: "/",                        label: "Inicio",       icon: "home"     },
+  { path: "/presupuestos-guardadas",  label: "Presupuestos", icon: "file"     },
+  { path: "/presupuestos",            label: "Nuevo",        icon: "plus",    special: true },
+  { path: "/facturas-guardadas",      label: "Facturas",     icon: "receipt"  },
+  { path: "/empresa",                 label: "Empresa",      icon: "building" },
 ];
 
 /* ─── Sidebar (desktop only) ─────────────────────────────────────────────── */
@@ -65,46 +65,56 @@ function Sidebar({ collapsed, onToggle }) {
   const location = useLocation();
   return (
     <aside
-      className="hidden md:flex flex-col h-screen bg-slate-900 border-r border-slate-800 transition-all duration-300 shrink-0"
-      style={{ width: collapsed ? 64 : 220 }}
+      className="hidden md:flex flex-col h-screen bg-gray-900 border-r border-gray-800 transition-all duration-200 shrink-0"
+      style={{ width: collapsed ? 56 : 228 }}
     >
       {/* Logo */}
-      <div className="flex items-center px-3 py-4 border-b border-slate-800 gap-3 min-h-[60px]">
-        <div className="shrink-0 w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round">
+      <div className="flex items-center h-14 px-3 border-b border-gray-800 gap-3">
+        <div className="shrink-0 w-7 h-7 bg-blue-600 rounded-md flex items-center justify-center">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
             <path d="M3 21h18M3 7l9-4 9 4M4 7v14M20 7v14M9 21V9h6v12"/>
           </svg>
         </div>
         {!collapsed && (
-          <span className="text-white font-bold text-sm leading-tight truncate">
-            MLN<br/><span className="text-slate-400 font-normal text-xs">Construcciones</span>
+          <span className="text-white font-semibold text-sm leading-tight truncate flex-1">
+            MLN <span className="text-gray-500 font-normal">Construcciones</span>
           </span>
         )}
-        <button onClick={onToggle} className="ml-auto text-slate-500 hover:text-white transition-colors">
-          <Icon d={collapsed ? icons.chevronR : icons.menu} size={16} />
+        <button
+          onClick={onToggle}
+          className={`text-gray-600 hover:text-gray-300 transition-colors ${collapsed ? "mx-auto" : ""}`}
+        >
+          <Icon d={collapsed ? icons.chevronR : icons.chevronL} size={14} />
         </button>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
+      <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-5">
         {NAV_GROUPS.map((group) => (
           <div key={group.label}>
             {!collapsed && (
-              <p className="px-2 mb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+              <p className="px-2 mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-600">
                 {group.label}
               </p>
             )}
             <ul className="space-y-0.5">
               {group.items.map((item) => {
-                const isActive = item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
+                const isActive = item.path === "/"
+                  ? location.pathname === "/"
+                  : location.pathname.startsWith(item.path);
                 return (
                   <li key={item.path}>
-                    <NavLink to={item.path} title={collapsed ? item.label : undefined}
-                      className={`flex items-center gap-3 px-2 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        isActive ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800 hover:text-white"
-                      }`}>
-                      <span className="shrink-0"><Icon d={icons[item.icon]} size={16} /></span>
-                      {!collapsed && <span className="truncate">{item.label}</span>}
+                    <NavLink
+                      to={item.path}
+                      title={collapsed ? item.label : undefined}
+                      className={`flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm transition-colors ${
+                        isActive
+                          ? "bg-blue-600 text-white"
+                          : "text-gray-400 hover:text-gray-100 hover:bg-gray-800"
+                      }`}
+                    >
+                      <span className="shrink-0"><Icon d={icons[item.icon]} size={15} /></span>
+                      {!collapsed && <span className="truncate font-medium">{item.label}</span>}
                     </NavLink>
                   </li>
                 );
@@ -123,30 +133,34 @@ function SidebarFooter({ collapsed }) {
   const { user, logout } = useAuth() || {};
   if (!FIREBASE_READY || !user) {
     return !collapsed ? (
-      <div className="px-4 py-3 border-t border-slate-800">
-        <p className="text-xs text-slate-600">v1.0.0</p>
+      <div className="px-3 py-3 border-t border-gray-800">
+        <p className="text-[10px] text-gray-700">v1.0.0</p>
       </div>
     ) : null;
   }
   return (
-    <div className="border-t border-slate-800 p-3 shrink-0">
+    <div className="border-t border-gray-800 px-3 py-3 shrink-0">
       {!collapsed ? (
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center shrink-0">
-            <span className="text-white text-xs font-bold uppercase">{(user.email || "U")[0]}</span>
+          <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center shrink-0">
+            <span className="text-white text-[10px] font-bold uppercase">{(user.email || "U")[0]}</span>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs text-white font-medium truncate">{user.email}</p>
-            <p className="text-[10px] text-slate-500">Administrador</p>
-          </div>
-          <button onClick={logout} title="Cerrar sesión" className="shrink-0 text-slate-500 hover:text-red-400 transition-colors">
-            <Icon d={icons.logout} size={15} />
+          <p className="text-xs text-gray-400 truncate flex-1">{user.email}</p>
+          <button
+            onClick={logout}
+            title="Cerrar sesión"
+            className="shrink-0 text-gray-600 hover:text-red-400 transition-colors"
+          >
+            <Icon d={icons.logout} size={13} />
           </button>
         </div>
       ) : (
-        <button onClick={logout} title="Cerrar sesión"
-          className="w-full flex items-center justify-center text-slate-500 hover:text-red-400 transition-colors py-1">
-          <Icon d={icons.logout} size={16} />
+        <button
+          onClick={logout}
+          title="Cerrar sesión"
+          className="w-full flex items-center justify-center text-gray-600 hover:text-red-400 transition-colors py-1"
+        >
+          <Icon d={icons.logout} size={14} />
         </button>
       )}
     </div>
@@ -157,50 +171,51 @@ function SidebarFooter({ collapsed }) {
 function MobileDrawer({ open, onClose }) {
   const location = useLocation();
   const { user, logout } = useAuth() || {};
-
-  // Close on route change
   useEffect(() => { onClose(); }, [location.pathname]);
-
   if (!open) return null;
   return (
     <>
-      <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={onClose} />
-      <div className="fixed inset-y-0 left-0 w-72 bg-slate-900 z-50 flex flex-col md:hidden shadow-2xl">
+      <div className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-y-0 left-0 w-64 bg-gray-900 z-50 flex flex-col md:hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-4 border-b border-slate-800">
+        <div className="flex items-center justify-between px-4 h-14 border-b border-gray-800">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round">
+            <div className="w-7 h-7 bg-blue-600 rounded-md flex items-center justify-center">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
                 <path d="M3 21h18M3 7l9-4 9 4M4 7v14M20 7v14M9 21V9h6v12"/>
               </svg>
             </div>
             <div>
-              <p className="text-white font-bold text-sm">MLN Construcciones</p>
-              <p className="text-slate-400 text-xs">en Altura SL</p>
+              <p className="text-white font-semibold text-sm">MLN Construcciones</p>
+              <p className="text-gray-500 text-[10px]">en Altura SL</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white p-1">
-            <Icon d={icons.x} size={20} />
+          <button onClick={onClose} className="text-gray-500 hover:text-white p-1 transition-colors">
+            <Icon d={icons.x} size={17} />
           </button>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5">
+        <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-5">
           {NAV_GROUPS.map((group) => (
             <div key={group.label}>
-              <p className="px-2 mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+              <p className="px-2 mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-600">
                 {group.label}
               </p>
-              <ul className="space-y-1">
+              <ul className="space-y-0.5">
                 {group.items.map((item) => {
-                  const isActive = item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
+                  const isActive = item.path === "/"
+                    ? location.pathname === "/"
+                    : location.pathname.startsWith(item.path);
                   return (
                     <li key={item.path}>
-                      <NavLink to={item.path}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                          isActive ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800 hover:text-white"
-                        }`}>
-                        <Icon d={icons[item.icon]} size={17} />
+                      <NavLink
+                        to={item.path}
+                        className={`flex items-center gap-2.5 px-2 py-2 rounded-md text-sm font-medium transition-colors ${
+                          isActive ? "bg-blue-600 text-white" : "text-gray-400 hover:text-gray-100 hover:bg-gray-800"
+                        }`}
+                      >
+                        <Icon d={icons[item.icon]} size={15} />
                         {item.label}
                       </NavLink>
                     </li>
@@ -213,17 +228,14 @@ function MobileDrawer({ open, onClose }) {
 
         {/* User */}
         {FIREBASE_READY && user && (
-          <div className="border-t border-slate-800 p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center shrink-0">
-                <span className="text-white text-sm font-bold uppercase">{(user.email || "U")[0]}</span>
+          <div className="border-t border-gray-800 px-4 py-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center shrink-0">
+                <span className="text-white text-xs font-bold uppercase">{(user.email || "U")[0]}</span>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-white font-medium truncate">{user.email}</p>
-                <p className="text-xs text-slate-500">Administrador</p>
-              </div>
-              <button onClick={logout} className="text-slate-500 hover:text-red-400 transition-colors p-1">
-                <Icon d={icons.logout} size={18} />
+              <p className="text-xs text-gray-400 truncate flex-1">{user.email}</p>
+              <button onClick={logout} className="text-gray-600 hover:text-red-400 transition-colors">
+                <Icon d={icons.logout} size={15} />
               </button>
             </div>
           </div>
@@ -238,20 +250,46 @@ function BottomNav() {
   const location = useLocation();
   return (
     <nav
-      className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-slate-200 flex items-stretch"
+      className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-xl border-t border-gray-100 flex items-end"
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
       {BOTTOM_NAV.map((item) => {
-        const isActive = item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
+        const isActive = item.path === "/"
+          ? location.pathname === "/"
+          : location.pathname.startsWith(item.path);
+
+        /* Centro: botón especial "Nuevo" */
+        if (item.special) {
+          return (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className="flex-1 flex flex-col items-center justify-end pb-2"
+            >
+              <div className="w-13 h-13 -mt-4 bg-blue-600 hover:bg-blue-700 rounded-2xl flex flex-col items-center justify-center shadow-lg shadow-blue-500/40 transition-colors"
+                style={{ width: 52, height: 52, marginTop: -14 }}>
+                <Icon d={icons.plus} size={22} />
+                <span className="text-[9px] font-black text-white/80 mt-0.5 tracking-wide">NUEVO</span>
+              </div>
+              <span className="text-[9px] font-bold text-blue-600 mt-1">Crear</span>
+            </NavLink>
+          );
+        }
+
         return (
-          <NavLink key={item.path} to={item.path}
-            className={`flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-[10px] font-medium transition-colors min-h-[56px] ${
-              isActive ? "text-blue-600" : "text-slate-500"
-            }`}>
-            <span className={`p-1 rounded-lg transition-colors ${isActive ? "bg-blue-50" : ""}`}>
-              <Icon d={icons[item.icon]} size={20} />
+          <NavLink
+            key={item.path}
+            to={item.path}
+            className={`flex-1 flex flex-col items-center justify-center py-2.5 gap-1 transition-colors min-h-[56px] ${
+              isActive ? "text-blue-600" : "text-gray-400"
+            }`}
+          >
+            {/* Active indicator dot */}
+            <div className={`w-1 h-1 rounded-full mb-0.5 transition-all ${isActive ? "bg-blue-600 scale-100" : "scale-0 bg-transparent"}`} />
+            <Icon d={icons[item.icon]} size={isActive ? 20 : 19} />
+            <span className={`text-[10px] font-bold transition-all ${isActive ? "text-blue-600" : "text-gray-400"}`}>
+              {item.label}
             </span>
-            {item.label}
           </NavLink>
         );
       })}
@@ -261,13 +299,13 @@ function BottomNav() {
 
 /* ─── Top Bar ─────────────────────────────────────────────────────────────── */
 const PAGE_TITLES = {
-  "/":                       "Dashboard",
+  "/":                       "Inicio",
   "/empresa":                "Mi Empresa",
   "/facturas":               "Nueva Factura",
   "/presupuestos":           "Nuevo Presupuesto",
   "/documento":              "Documento",
   "/gestion-empresarial":    "Gestión",
-  "/facturas-guardadas":     "Borradores",
+  "/facturas-guardadas":     "Facturas",
   "/presupuestos-guardadas": "Presupuestos",
   "/balances":               "Balances",
 };
@@ -278,31 +316,30 @@ function TopBar({ onMenuClick }) {
   const { fbStatus, loading } = useData() || {};
 
   const statusCfg = {
-    connected:  { dot: "bg-emerald-500", label: "Firebase" },
-    local:      { dot: "bg-amber-400",   label: "Local"    },
-    connecting: { dot: "bg-blue-400 animate-pulse", label: "Sync…" },
-    error:      { dot: "bg-red-500",     label: "Error"    },
+    connected:  { dot: "bg-emerald-500", label: "Sincronizado" },
+    local:      { dot: "bg-amber-400",   label: "Local"        },
+    connecting: { dot: "bg-blue-400 animate-pulse", label: "Conectando" },
+    error:      { dot: "bg-red-500",     label: "Error"        },
   };
   const s = statusCfg[fbStatus] || statusCfg.local;
 
   return (
-    <header className="h-[56px] md:h-[60px] border-b border-slate-200 bg-white flex items-center px-4 gap-3 shrink-0">
-      {/* Hamburger — mobile only */}
-      <button onClick={onMenuClick} className="md:hidden text-slate-600 hover:text-slate-900 p-1 -ml-1">
-        <Icon d={icons.menu} size={22} />
+    <header className="h-14 border-b border-gray-200 bg-white flex items-center px-4 gap-3 shrink-0">
+      <button onClick={onMenuClick} className="md:hidden text-gray-500 hover:text-gray-900 p-1 -ml-1 transition-colors">
+        <Icon d={icons.menu} size={20} />
       </button>
 
-      <h1 className="text-slate-800 font-semibold text-base truncate flex-1">{title}</h1>
+      <h1 className="text-gray-900 font-semibold text-sm flex-1 truncate">{title}</h1>
 
       {loading && (
-        <svg className="animate-spin w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24">
+        <svg className="animate-spin w-3 h-3 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
         </svg>
       )}
       <div className="flex items-center gap-1.5 shrink-0">
-        <div className={`w-2 h-2 rounded-full ${s.dot}`} />
-        <span className="text-xs text-slate-500 hidden sm:inline">{s.label}</span>
+        <div className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+        <span className="text-xs text-gray-400 hidden sm:inline">{s.label}</span>
       </div>
     </header>
   );
@@ -313,42 +350,35 @@ function FirebaseBanner() {
   const [dismissed, setDismissed] = useState(() => !!sessionStorage.getItem("fb_banner_dismissed"));
   if (FIREBASE_READY || dismissed) return null;
   return (
-    <div className="bg-amber-50 border-b border-amber-200 px-3 py-2 flex items-start gap-2 text-xs text-amber-800 shrink-0">
-      <svg className="shrink-0 mt-0.5" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-      </svg>
-      <span className="flex-1">Modo local — datos solo en este dispositivo.</span>
-      <button onClick={() => { sessionStorage.setItem("fb_banner_dismissed","1"); setDismissed(true); }}
-        className="shrink-0 text-amber-600 font-bold text-base leading-none">×</button>
+    <div className="bg-amber-50 border-b border-amber-100 px-4 py-2 flex items-center gap-2 text-xs text-amber-700 shrink-0">
+      <div className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+      <span className="flex-1">Modo local — los datos se guardan solo en este dispositivo.</span>
+      <button
+        onClick={() => { sessionStorage.setItem("fb_banner_dismissed","1"); setDismissed(true); }}
+        className="shrink-0 text-amber-500 hover:text-amber-700 font-semibold text-sm leading-none transition-colors"
+      >×</button>
     </div>
   );
 }
 
 /* ─── Layout ──────────────────────────────────────────────────────────────── */
 export default function Layout() {
-  const [collapsed,    setCollapsed]    = useState(false);
-  const [drawerOpen,   setDrawerOpen]   = useState(false);
+  const [collapsed,  setCollapsed]  = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
-      {/* Desktop sidebar */}
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} />
-
-      {/* Mobile drawer */}
       <MobileDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
 
       <div className="flex flex-col flex-1 overflow-hidden">
         <TopBar onMenuClick={() => setDrawerOpen(true)} />
         <FirebaseBanner />
-
-        {/* Main content — pb-nav-safe on mobile clears bottom nav + safe area */}
         <main className="flex-1 overflow-y-auto pb-nav-safe md:pb-0">
           <Outlet />
         </main>
       </div>
 
-      {/* Mobile bottom nav */}
       <BottomNav />
     </div>
   );

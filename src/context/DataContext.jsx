@@ -1,6 +1,12 @@
+/**
+ * DataContext — real-time Firestore listeners with localStorage fallback.
+ *
+ * Auth-state changes are handled by AuthContext (single onAuthStateChanged).
+ * This context reacts to `user` via useEffect([user]) — no duplicate listener.
+ */
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { onAuthStateChanged } from "firebase/auth";
-import { auth, FIREBASE_READY } from "../services/firebase.js";
+import { useAuth } from "./AuthContext.jsx";
+import { FIREBASE_READY } from "../services/firebase.js";
 import {
   facturasSvc, presupuestosSvc, borradoresSvc,
   migrateLocalStorageToFirebase,
@@ -10,6 +16,8 @@ const DataContext = createContext(null);
 export const useData = () => useContext(DataContext);
 
 export function DataProvider({ children }) {
+  const { user } = useAuth();
+
   const [facturas,     setFacturas]     = useState([]);
   const [presupuestos, setPresupuestos] = useState([]);
   const [borradores,   setBorradores]   = useState([]);
@@ -18,7 +26,7 @@ export function DataProvider({ children }) {
   const [error,        setError]        = useState(null);
 
   useEffect(() => {
-    // ── Sin Firebase: cargar localStorage directamente ──────────────────
+    // ── Sin Firebase: modo localStorage ────────────────────────────────────
     if (!FIREBASE_READY) {
       const u1 = facturasSvc.listen(    (d) => setFacturas(d));
       const u2 = presupuestosSvc.listen((d) => setPresupuestos(d));
@@ -28,62 +36,53 @@ export function DataProvider({ children }) {
       return () => { u1(); u2(); u3(); };
     }
 
-    // ── Con Firebase: esperar sesión activa antes de abrir listeners ─────
-    let unsubData = () => {};
+    // ── Sin sesión activa: limpiar y esperar ────────────────────────────────
+    if (!user) {
+      setFacturas([]);
+      setPresupuestos([]);
+      setBorradores([]);
+      setFbStatus("local");
+      setLoading(false);
+      return;
+    }
 
-    const unsubAuth = onAuthStateChanged(auth, (user) => {
-      // Cerrar listeners anteriores si los había
-      unsubData();
+    // ── Sesión activa: abrir listeners en tiempo real ───────────────────────
+    setLoading(true);
+    setFbStatus("connecting");
 
-      if (!user) {
-        // No hay sesión — limpiar datos y esperar
-        setFacturas([]);
-        setPresupuestos([]);
-        setBorradores([]);
+    // Track which collections have delivered their first snapshot.
+    // Using a Set ensures each collection is counted only once,
+    // even though Firestore listeners fire on every data change.
+    const initialized = new Set();
+    const onReady = (key) => {
+      initialized.add(key);
+      if (initialized.size >= 3) {
         setLoading(false);
-        setFbStatus("local");
-        return;
+        setFbStatus("connected");
       }
-
-      // Sesión activa → abrir listeners en tiempo real
-      setLoading(true);
-      setFbStatus("connecting");
-      let ready = 0;
-
-      const onReady = () => {
-        ready++;
-        if (ready >= 3) {
-          setLoading(false);
-          setFbStatus("connected");
-        }
-      };
-      const onErr = (e) => {
-        console.error("[DataContext]", e);
-        setError(e?.message || "Error de Firebase");
-        setFbStatus("error");
-        setLoading(false);
-      };
-
-      const u1 = facturasSvc.listen(    (d) => { setFacturas(d);     onReady(); }, onErr);
-      const u2 = presupuestosSvc.listen((d) => { setPresupuestos(d); onReady(); }, onErr);
-      const u3 = borradoresSvc.listen(  (d) => { setBorradores(d);   onReady(); }, onErr);
-
-      unsubData = () => { u1(); u2(); u3(); };
-
-      // Migrar localStorage → Firestore la primera vez
-      migrateLocalStorageToFirebase()
-        .then(({ migrated }) => {
-          if (migrated > 0) console.info(`[Firebase] Migrados ${migrated} registros de localStorage.`);
-        })
-        .catch(console.warn);
-    });
-
-    return () => {
-      unsubAuth();
-      unsubData();
     };
-  }, []);
+    const onErr = (e) => {
+      console.error("[DataContext]", e);
+      setError(e?.message || "Error de Firebase");
+      setFbStatus("error");
+      setLoading(false);
+    };
 
+    const u1 = facturasSvc.listen(    (d) => { setFacturas(d);     onReady("facturas");     }, onErr);
+    const u2 = presupuestosSvc.listen((d) => { setPresupuestos(d); onReady("presupuestos"); }, onErr);
+    const u3 = borradoresSvc.listen(  (d) => { setBorradores(d);   onReady("borradores");   }, onErr);
+
+    // Migrate localStorage → Firestore once (no-op if already done)
+    migrateLocalStorageToFirebase()
+      .then(({ migrated }) => {
+        if (migrated > 0) console.info(`[Firebase] Migrados ${migrated} registros de localStorage.`);
+      })
+      .catch(console.warn);
+
+    return () => { u1(); u2(); u3(); };
+  }, [user]); // Reacts to auth state — no separate onAuthStateChanged needed
+
+  /* ── CRUD callbacks ─────────────────────────────────────────────────────── */
   const upsertFactura      = useCallback((data) => facturasSvc.upsert(data),      []);
   const removeFactura      = useCallback((id)   => facturasSvc.remove(id),        []);
   const getFacturaById     = useCallback((id)   => facturasSvc.getById(id),       []);
